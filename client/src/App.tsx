@@ -1,0 +1,546 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import confetti from 'canvas-confetti';
+import { ScreenOnboarding } from './components/screens/Onboarding';
+import { ScreenHome } from './components/screens/Home';
+import { ScreenMatchDetail } from './components/screens/MatchDetail';
+import { ScreenLivePreball } from './components/screens/LivePreball';
+import type { FeedItem } from './components/screens/LivePreball';
+import { LiveDesktop } from './components/desktop/LiveDesktop';
+import { OnboardingDesktop, HomeDesktop, MatchDetailDesktop, PanelDesktop, YouDesktop, RecapDesktop } from './components/desktop/DesktopScreens';
+import { ScreenAskPanel } from './components/screens/AskPanelScreen';
+import { ScreenRecap } from './components/screens/Recap';
+import { ScreenPanel } from './components/screens/PanelScreen';
+import type { Ball, MatchContext } from './types';
+import { parseCricsheet } from './lib/cricsheet';
+import { fetchNextPrediction, submitReaction, askPanel } from './lib/api';
+
+type Screen = 'onboarding' | 'home' | 'matchDetail' | 'live' | 'askPanel' | 'recap' | 'panel' | 'you';
+
+const SPEEDS = [1, 2, 4];
+const BASE_INTERVAL_MS = 16000;
+
+let audioCtx: AudioContext | null = null;
+function tone(freq: number, dur: number, type: OscillatorType = 'sine', vol = 0.18) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const ctx = audioCtx;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type; osc.frequency.value = freq;
+    osc.connect(gain); gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(vol, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+    osc.start(); osc.stop(ctx.currentTime + dur);
+  } catch { /* audio blocked */ }
+}
+const playBoundary = () => { tone(523, 0.15); setTimeout(() => tone(784, 0.25), 90); };
+const playWicket = () => { tone(220, 0.18, 'sawtooth', 0.22); setTimeout(() => tone(110, 0.4, 'sawtooth', 0.22), 100); };
+const playCorrect = () => { tone(659, 0.12); setTimeout(() => tone(880, 0.22), 80); };
+const playWrong = () => { tone(180, 0.28, 'square', 0.15); };
+
+// ── "You" Profile Screen ──────────────────────────────────────
+function ScreenYou({ userScore, predictorScore, bestStreak, matchesPlayed, totalBalls, correctPredictions, onBack }: {
+  userScore: number; predictorScore: number; bestStreak: number;
+  matchesPlayed: number; totalBalls: number; correctPredictions: number;
+  onBack: () => void;
+}) {
+  const accuracy = totalBalls > 0 ? Math.round((correctPredictions / totalBalls) * 100) : 0;
+  return (
+    <div className="sl-screen" style={{ overflow: "hidden" }}>
+      <div className="sl-content" style={{ padding: "4px 20px 16px", flexShrink: 0 }}>
+        <div onClick={onBack} style={{ fontFamily: "var(--f-mono)", fontSize: 10, letterSpacing: 0.08, color: "var(--light-3)", textTransform: "uppercase" as const, cursor: "pointer" }}>← Back</div>
+        <div style={{ fontFamily: "var(--f-display)", fontSize: 28, fontWeight: 600, letterSpacing: -0.02, marginTop: 2, color: "var(--light-0)" }}>
+          Your <span style={{ fontStyle: "italic", color: "var(--pitch-1)" }}>stats</span>.
+        </div>
+      </div>
+
+      <div className="sl-content" style={{ flex: 1, overflowY: "auto", padding: "0 20px 24px" }}>
+        {/* Score hero */}
+        <div style={{
+          padding: "24px 20px", background: "var(--ink-1)", borderRadius: 22,
+          border: "1px solid rgba(255,255,255,0.05)", marginBottom: 16,
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <div>
+              <div style={{ fontFamily: "var(--f-mono)", fontSize: 10, letterSpacing: 0.08, color: "var(--light-3)", textTransform: "uppercase" as const }}>Your score</div>
+              <div style={{ fontFamily: "var(--f-display)", fontSize: 48, fontWeight: 600, color: "var(--pitch-1)", lineHeight: 1, marginTop: 4 }}>{userScore}</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontFamily: "var(--f-mono)", fontSize: 10, letterSpacing: 0.08, color: "var(--light-3)", textTransform: "uppercase" as const }}>AI score</div>
+              <div style={{ fontFamily: "var(--f-display)", fontSize: 48, fontWeight: 600, color: "var(--predict)", lineHeight: 1, marginTop: 4 }}>{predictorScore}</div>
+            </div>
+          </div>
+          <div style={{
+            marginTop: 16, height: 6, background: "rgba(255,255,255,0.05)", borderRadius: 3, overflow: "hidden", position: "relative",
+          }}>
+            <div style={{
+              position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: 3,
+              width: `${userScore + predictorScore > 0 ? (userScore / (userScore + predictorScore)) * 100 : 50}%`,
+              background: "var(--pitch-1)", transition: "width 0.5s ease",
+            }} />
+          </div>
+          <div style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: userScore >= predictorScore ? "var(--pitch-1)" : "var(--red-0)", marginTop: 8, letterSpacing: 0.04, textAlign: "center" }}>
+            {userScore > predictorScore ? `You lead by ${userScore - predictorScore} pts` : userScore < predictorScore ? `AI leads by ${predictorScore - userScore} pts` : "Tied!"}
+          </div>
+        </div>
+
+        {/* Stat grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {[
+            { label: "ACCURACY", value: `${accuracy}%`, color: "var(--pitch-1)" },
+            { label: "BEST STREAK", value: `🔥 ${bestStreak}`, color: "var(--red-0)" },
+            { label: "BALLS CALLED", value: String(totalBalls), color: "var(--light-0)" },
+            { label: "CORRECT", value: String(correctPredictions), color: "var(--pitch-1)" },
+            { label: "MATCHES", value: String(matchesPlayed), color: "var(--light-0)" },
+          ].map(s => (
+            <div key={s.label} style={{
+              padding: "16px 14px", background: "var(--ink-1)", borderRadius: 16,
+              border: "1px solid rgba(255,255,255,0.04)",
+            }}>
+              <div style={{ fontFamily: "var(--f-mono)", fontSize: 9, letterSpacing: 0.06, color: "var(--light-3)" }}>{s.label}</div>
+              <div style={{ fontFamily: "var(--f-display)", fontSize: 26, color: s.color, fontWeight: 600, marginTop: 6, lineHeight: 1, letterSpacing: -0.02 }}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── viewport hook ────────────────────────────────────────────
+function useIsDesktop(breakpoint = 1024): boolean {
+  const [isDesktop, setIsDesktop] = useState<boolean>(() =>
+    typeof window !== 'undefined' && window.matchMedia(`(min-width: ${breakpoint}px)`).matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(min-width: ${breakpoint}px)`);
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [breakpoint]);
+  return isDesktop;
+}
+
+export default function App() {
+  const isDesktop = useIsDesktop(1024);
+  const [screen, setScreen] = useState<Screen>('onboarding');
+  const [balls, setBalls] = useState<Ball[]>([]);
+  const [currentBallIndex, setCurrentBallIndex] = useState(0);
+  const [matchInfo, setMatchInfo] = useState<{ teams: [string, string]; venue: string; battingTeam: string }>({
+    teams: ['Team A', 'Team B'], venue: 'TBA', battingTeam: 'Team A',
+  });
+
+  const [userScore, setUserScore] = useState(0);
+  const [predictorScore, setPredictorScore] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+  const [correctPredictions, setCorrectPredictions] = useState(0);
+  const [totalBallsCalled, setTotalBallsCalled] = useState(0);
+  const [matchScoreInfo, setMatchScoreInfo] = useState({ runs: 0, wickets: 0 });
+  const [isPaused, setIsPaused] = useState(false);
+  const [speedIndex, setSpeedIndex] = useState(0);
+  const [feed, setFeed] = useState<FeedItem[]>([]);
+  const [userPrediction, setUserPrediction] = useState<'Dot' | 'Boundary' | 'Wicket' | 'Other' | null>(null);
+  const [predictorPrediction, setPredictorPrediction] = useState<string>('');
+  const [isBallPlaying, setIsBallPlaying] = useState(false);
+  const [isAIFetching, setIsAIFetching] = useState(false);
+  const [shake, setShake] = useState(false);
+  const [askingPanel, setAskingPanel] = useState(false);
+  const [recentBalls, setRecentBalls] = useState<{ run: string; c: string; over: number }[]>([]);
+
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    fetch('/data/match.json')
+      .then(res => res.json())
+      .then(data => {
+        const parsedBalls = parseCricsheet(data);
+        setBalls(parsedBalls);
+        const teams = data?.info?.teams ?? ['Team A', 'Team B'];
+        const battingTeam = data?.innings?.[0]?.team ?? teams[0];
+        setMatchInfo({
+          teams: [teams[0] ?? 'Team A', teams[1] ?? 'Team B'],
+          venue: data?.info?.venue ?? 'Stadium',
+          battingTeam,
+        });
+      })
+      .catch(err => console.error("Failed to load match data", err));
+  }, []);
+
+  const addFeedItem = (agentId: FeedItem['agentId'], message: string, extra?: Partial<FeedItem>) => {
+    setFeed(prev => [...prev, { id: Math.random().toString() + Date.now(), agentId, message, ...extra }]);
+  };
+
+  const currentBall = balls[currentBallIndex] || null;
+  const speed = SPEEDS[speedIndex];
+  const ballIntervalMs = BASE_INTERVAL_MS / speed;
+
+  const playNextBall = useCallback(async () => {
+    if (currentBallIndex >= balls.length || isAIFetching) return;
+    setIsBallPlaying(true);
+    setIsAIFetching(true);
+
+    const ball = balls[currentBallIndex];
+    const newRuns = matchScoreInfo.runs + ball.runs;
+    const newWickets = matchScoreInfo.wickets + (ball.isWicket ? 1 : 0);
+    setMatchScoreInfo({ runs: newRuns, wickets: newWickets });
+
+    // Ball outcome display — wides/no-balls/leg-byes get distinct glyphs
+    let ballDisplay: string;
+    let ballColor: string;
+    if (ball.isWicket) {
+      ballDisplay = "W"; ballColor = "var(--red-1)";
+    } else if (ball.extra === 'wide') {
+      ballDisplay = `${ball.runs}wd`; ballColor = "var(--stats)";
+    } else if (ball.extra === 'noball') {
+      ballDisplay = `${ball.runs}nb`; ballColor = "var(--roast)";
+    } else if (ball.extra === 'legbye') {
+      ballDisplay = `${ball.runs}lb`; ballColor = "var(--light-3)";
+    } else if (ball.extra === 'bye') {
+      ballDisplay = `${ball.runs}b`; ballColor = "var(--light-3)";
+    } else if (ball.isDot) {
+      ballDisplay = "·"; ballColor = "var(--dot)";
+    } else if (ball.isBoundary) {
+      ballDisplay = String(ball.runs); ballColor = "var(--boundary)";
+    } else {
+      ballDisplay = String(ball.runs); ballColor = "var(--light-2)";
+    }
+    setRecentBalls(prev => {
+      const next = [...prev, { run: ballDisplay, c: ballColor, over: ball.over }];
+      // Keep last 24 balls (4 overs of context) — UI filters/groups by `over`
+      return next.length > 24 ? next.slice(-24) : next;
+    });
+
+    if (ball.isWicket) playWicket();
+    else if (ball.isBoundary) playBoundary();
+
+    let uScoreDelta = 0;
+    let userWasCorrect: boolean | undefined = undefined;
+    if (userPrediction) {
+      setTotalBallsCalled(prev => prev + 1);
+      if (userPrediction === ball.outcome) {
+        uScoreDelta = 10;
+        setUserScore(s => s + 10);
+        setCorrectPredictions(prev => prev + 1);
+        setStreak(s => {
+          const next = s + 1;
+          setBestStreak(b => Math.max(b, next));
+          return next;
+        });
+        confetti({ particleCount: 80, spread: 70, startVelocity: 35, origin: { y: 0.6 } });
+        setTimeout(playCorrect, 200);
+        userWasCorrect = true;
+      } else {
+        setStreak(0);
+        setShake(true);
+        setTimeout(() => setShake(false), 500);
+        setTimeout(playWrong, 200);
+        userWasCorrect = false;
+      }
+    }
+
+    let pScoreDelta = 0;
+    const pChoiceMatch = predictorPrediction.match(/\b(Dot|Boundary|Wicket|Other)\b/i);
+    const pChoice = pChoiceMatch ? pChoiceMatch[0] : null;
+    if (pChoice && pChoice.toLowerCase() === ball.outcome.toLowerCase()) {
+      pScoreDelta = 10;
+      setPredictorScore(s => s + 10);
+    }
+
+    // ── Add ball divider to feed ──
+    const overLabel = `${ball.over}.${ball.ball}`;
+    const wicketDetail = ball.wicketInfo ? ` · ${ball.wicketInfo.playerOut} ${ball.wicketInfo.kind}` : '';
+    const runsDetail = ball.outcome === 'Boundary' ? `${ball.runs} runs` : ball.outcome === 'Other' ? `${ball.runs} run${ball.runs !== 1 ? 's' : ''}` : '';
+    const dividerLabel = `OV ${overLabel} · ${ball.batter} → ${ball.outcome}${wicketDetail}${runsDetail ? ` · ${runsDetail}` : ''}`;
+    addFeedItem('ballDivider', '', {
+      ballOutcome: ball.outcome,
+      ballRuns: ball.runs,
+      ballLabel: dividerLabel,
+      userCorrect: userWasCorrect,
+    });
+
+    const matchContext: MatchContext = {
+      over: ball.over,
+      score: `${newRuns}/${newWickets}`,
+      userScoreTotal: userScore + uScoreDelta,
+      predictorScoreTotal: predictorScore + pScoreDelta
+    };
+
+    try {
+      const reactions = await submitReaction(ball, userPrediction || 'None', predictorPrediction, matchContext);
+      addFeedItem('statsNerd', reactions.statsNerd);
+      addFeedItem('roastAgent', reactions.roastAgent);
+      addFeedItem('predictor', reactions.predictor);
+    } catch (e) {
+      console.error(e);
+      addFeedItem('roastAgent', "API choked. The agents are all stuck in traffic.");
+    }
+
+    setIsAIFetching(false);
+    setIsBallPlaying(false);
+    setUserPrediction(null);
+    setPredictorPrediction('');
+    setCurrentBallIndex(i => i + 1);
+  }, [balls, currentBallIndex, userPrediction, predictorPrediction, matchScoreInfo, userScore, predictorScore, isAIFetching]);
+
+  useEffect(() => {
+    if (screen !== 'live' || isPaused || balls.length === 0 || currentBallIndex >= balls.length || isAIFetching) {
+      if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+      return;
+    }
+
+    if (!predictorPrediction && !isBallPlaying) {
+      setIsAIFetching(true);
+      const ball = balls[currentBallIndex];
+      const matchContext: MatchContext = {
+        over: ball.over,
+        score: `${matchScoreInfo.runs}/${matchScoreInfo.wickets}`,
+        userScoreTotal: userScore, predictorScoreTotal: predictorScore
+      };
+      fetchNextPrediction(matchContext).then(pred => {
+        setPredictorPrediction(pred);
+        setIsAIFetching(false);
+        timerRef.current = setTimeout(playNextBall, ballIntervalMs);
+      }).catch(e => {
+        console.error(e);
+        setPredictorPrediction('Other');
+        setIsAIFetching(false);
+        timerRef.current = setTimeout(playNextBall, ballIntervalMs);
+      });
+      return;
+    }
+
+    if (!timerRef.current && !isBallPlaying) {
+      timerRef.current = setTimeout(playNextBall, ballIntervalMs);
+    }
+
+    return () => {
+      if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    };
+  }, [screen, isPaused, balls, currentBallIndex, isAIFetching, playNextBall, ballIntervalMs, predictorPrediction, isBallPlaying]);
+
+  // Check for match over
+  useEffect(() => {
+    if (screen === 'live' && balls.length > 0 && currentBallIndex >= balls.length) {
+      setScreen('recap');
+    }
+  }, [screen, balls, currentBallIndex]);
+
+  const handleAsk = async (question: string) => {
+    if (askingPanel) return;
+    setAskingPanel(true);
+    addFeedItem('user', question);
+    const matchContext: MatchContext = {
+      over: currentBall?.over ?? 0,
+      score: `${matchScoreInfo.runs}/${matchScoreInfo.wickets}`,
+      userScoreTotal: userScore, predictorScoreTotal: predictorScore,
+    };
+    try {
+      const answers = await askPanel(question, matchContext);
+      addFeedItem('statsNerd', answers.statsNerd);
+      addFeedItem('roastAgent', answers.roastAgent);
+      addFeedItem('predictor', answers.predictor);
+    } catch (e) {
+      console.error(e);
+      addFeedItem('roastAgent', "Network choked on that question.");
+    } finally { setAskingPanel(false); }
+  };
+
+  const isInMatch = currentBallIndex > 0 && currentBallIndex < balls.length;
+
+  const handleNavigate = (id: string) => {
+    if (id === 'panel') setScreen('panel');
+    else if (id === 'matches') setScreen(isInMatch ? 'live' : 'home');
+    else if (id === 'you') setScreen('you');
+  };
+
+  const matchScore = `${matchScoreInfo.runs}/${matchScoreInfo.wickets}`;
+
+  return (
+    <div style={{
+      width: "100%", height: "100dvh",
+      position: "relative", overflow: "hidden",
+      animation: shake ? "sl-shake 0.5s ease-in-out" : undefined,
+    }}>
+      {screen === 'onboarding' && (
+        isDesktop ? (
+          <OnboardingDesktop onStart={() => setScreen('home')} />
+        ) : (
+          <ScreenOnboarding onStart={() => setScreen('home')} />
+        )
+      )}
+
+      {screen === 'home' && (
+        isDesktop ? (
+          <HomeDesktop
+            teams={matchInfo.teams}
+            venue={matchInfo.venue}
+            battingTeam={matchInfo.battingTeam}
+            userScore={userScore}
+            predictorScore={predictorScore}
+            matchesPlayed={1}
+            onJoinMatch={() => setScreen('matchDetail')}
+            onNavigate={handleNavigate}
+            onUserProfile={() => setScreen('you')}
+          />
+        ) : (
+          <ScreenHome
+            teams={matchInfo.teams}
+            venue={matchInfo.venue}
+            battingTeam={matchInfo.battingTeam}
+            userScore={userScore}
+            predictorScore={predictorScore}
+            matchesPlayed={1}
+            onJoinMatch={() => setScreen('matchDetail')}
+            onNavigate={handleNavigate}
+            onUserProfile={() => setScreen('you')}
+          />
+        )
+      )}
+
+      {screen === 'matchDetail' && (
+        isDesktop ? (
+          <MatchDetailDesktop
+            teams={matchInfo.teams}
+            venue={matchInfo.venue}
+            battingTeam={matchInfo.battingTeam}
+            onStart={() => setScreen('live')}
+            onBack={() => setScreen('home')}
+            onNavigate={handleNavigate}
+            onUserProfile={() => setScreen('you')}
+          />
+        ) : (
+          <ScreenMatchDetail
+            teams={matchInfo.teams}
+            venue={matchInfo.venue}
+            battingTeam={matchInfo.battingTeam}
+            onStart={() => setScreen('live')}
+            onBack={() => setScreen('home')}
+          />
+        )
+      )}
+
+      {screen === 'live' && (
+        isDesktop ? (
+          <LiveDesktop
+            ball={currentBall}
+            matchScore={matchScore}
+            battingTeam={matchInfo.battingTeam}
+            teams={matchInfo.teams}
+            userScore={userScore}
+            predictorScore={predictorScore}
+            streak={streak}
+            userPrediction={userPrediction}
+            predictorPrediction={predictorPrediction}
+            onPredict={(p) => setUserPrediction(p)}
+            feed={feed}
+            isBallPlaying={isBallPlaying}
+            isAIFetching={isAIFetching}
+            onAskPanel={() => setScreen('askPanel')}
+            recentBalls={recentBalls}
+            isPaused={isPaused}
+            onTogglePause={() => setIsPaused(!isPaused)}
+            speed={speed}
+            onToggleSpeed={() => setSpeedIndex(s => (s + 1) % SPEEDS.length)}
+            onExit={() => setScreen('home')}
+            onUserProfile={() => setScreen('you')}
+          />
+        ) : (
+          <ScreenLivePreball
+            ball={currentBall}
+            matchScore={matchScore}
+            userScore={userScore}
+            predictorScore={predictorScore}
+            streak={streak}
+            isPaused={isPaused}
+            onTogglePause={() => setIsPaused(!isPaused)}
+            speed={speed}
+            onToggleSpeed={() => setSpeedIndex(s => (s + 1) % SPEEDS.length)}
+            userPrediction={userPrediction}
+            predictorPrediction={predictorPrediction}
+            onPredict={(p) => setUserPrediction(p)}
+            feed={feed}
+            isBallPlaying={isBallPlaying}
+            isAIFetching={isAIFetching}
+            onBack={() => setScreen('home')}
+            onAskPanel={() => setScreen('askPanel')}
+            onNavigate={handleNavigate}
+            recentBalls={recentBalls}
+          />
+        )
+      )}
+
+      {screen === 'askPanel' && (
+        <ScreenAskPanel
+          feed={feed}
+          matchScore={matchScore}
+          over={currentBall ? `${currentBall.over}.${currentBall.ball}` : "0.0"}
+          onAsk={handleAsk}
+          onBack={() => setScreen('live')}
+          disabled={askingPanel || isBallPlaying || isAIFetching}
+        />
+      )}
+
+      {screen === 'recap' && (
+        isDesktop ? (
+          <RecapDesktop
+            userScore={userScore}
+            predictorScore={predictorScore}
+            streak={bestStreak}
+            teams={matchInfo.teams}
+            onBack={() => setScreen('home')}
+            onNavigate={handleNavigate}
+            onUserProfile={() => setScreen('you')}
+          />
+        ) : (
+          <ScreenRecap
+            userScore={userScore}
+            predictorScore={predictorScore}
+            streak={bestStreak}
+            teams={matchInfo.teams}
+            onBack={() => setScreen('home')}
+          />
+        )
+      )}
+
+      {screen === 'panel' && (
+        isDesktop ? (
+          <PanelDesktop
+            onBack={() => setScreen(isInMatch ? 'live' : 'home')}
+            onNavigate={handleNavigate}
+            onUserProfile={() => setScreen('you')}
+          />
+        ) : (
+          <ScreenPanel onBack={() => setScreen(isInMatch ? 'live' : 'home')} />
+        )
+      )}
+
+      {screen === 'you' && (
+        isDesktop ? (
+          <YouDesktop
+            userScore={userScore}
+            predictorScore={predictorScore}
+            bestStreak={bestStreak}
+            matchesPlayed={1}
+            totalBalls={totalBallsCalled}
+            correctPredictions={correctPredictions}
+            onBack={() => setScreen(isInMatch ? 'live' : 'home')}
+            onNavigate={handleNavigate}
+            onUserProfile={() => setScreen('you')}
+          />
+        ) : (
+          <ScreenYou
+            userScore={userScore}
+            predictorScore={predictorScore}
+            bestStreak={bestStreak}
+            matchesPlayed={1}
+            totalBalls={totalBallsCalled}
+            correctPredictions={correctPredictions}
+            onBack={() => setScreen(isInMatch ? 'live' : 'home')}
+          />
+        )
+      )}
+    </div>
+  );
+}

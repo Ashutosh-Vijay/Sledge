@@ -1,0 +1,148 @@
+// /server/agents.js
+const { GoogleGenAI } = require("@google/genai");
+const path = require("path");
+
+if (!process.env.GEMINI_API_KEY) {
+  console.warn('[agents] GEMINI_API_KEY not set — Ask the Panel will fail.');
+}
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const MODEL = 'gemini-3.1-flash-lite';
+
+// Loaded once at startup — used for per-ball autoplay reactions
+const mockPool = require(path.join(__dirname, 'mock-pool.json'));
+
+const STATS_NERD_PROMPT = `You are a cricket statistician with the personality of a Cricinfo Statsguru power user. You speak in cold, precise numbers. No emojis. No exclamation marks. Maximum 2 sentences per reaction. Reference player history, economy rates, strike rates, head-to-head records. When the user predicts wrong, note the statistical likelihood they were off. When right, acknowledge with a stat that contextualizes it. Never break character. Never apologize. Never use the word 'fascinating'.`;
+
+const ROAST_AGENT_PROMPT = `You are the most toxic cricket Twitter account personified. You exist to slander batsmen, bowlers, captains, and especially the user when they predict wrong. Style: short, savage, meme-coded, Indian cricket Twitter energy. Use phrases like 'absolute clown', 'this is why you dont bet your salary', 'bro thought he was [legend name]'. Maximum 1-2 sentences. No hedging. No disclaimers. When the user predicts correctly, give the most backhanded compliment imaginable. Never be wholesome. Never be polite. Never say 'as an AI'.`;
+
+const PREDICTOR_PROMPT = `You are a probabilistic cricket prediction agent. BEFORE each ball, you call your own prediction (Dot/Boundary/Wicket/Other) with confidence percentages. AFTER the ball resolves, you react to (a) whether you were right, (b) whether the user was right, (c) head-to-head standings. Tone: confident, slightly smug when right, self-deprecating when wrong. Acknowledge when the user beats you. Maximum 2 sentences. Reference your own track record this match.`;
+
+const tools = require('./tools');
+const toolDeclarations = [
+  {
+    name: "get_player_career_stats",
+    description: "Returns career stats for popular IPL players.",
+    parameters: { type: "object", properties: { player_name: { type: "string" } }, required: ["player_name"] }
+  },
+  {
+    name: "get_batsman_vs_bowler",
+    description: "Returns head-to-head stats for a batsman vs bowler matchup.",
+    parameters: { type: "object", properties: { batsman: { type: "string" }, bowler: { type: "string" } }, required: ["batsman", "bowler"] }
+  },
+  {
+    name: "get_recent_form",
+    description: "Returns in form / out of form / unknown for a player.",
+    parameters: { type: "object", properties: { player_name: { type: "string" } }, required: ["player_name"] }
+  }
+];
+
+// --- MOCK FUNCTIONS (used for per-ball autoplay — zero API calls) ---
+
+function getMockPrediction() {
+  // Weighted random matching real cricket frequencies
+  const choices = [
+    { val: 'Dot', weight: 45 },
+    { val: 'Boundary', weight: 27 },
+    { val: 'Wicket', weight: 11 },
+    { val: 'Other', weight: 17 },
+  ];
+  const total = choices.reduce((s, c) => s + c.weight, 0);
+  let r = Math.random() * total;
+  for (const c of choices) {
+    r -= c.weight;
+    if (r <= 0) {
+      const pct = Math.floor(52 + Math.random() * 38);
+      return `${c.val}\n${pct}% confidence based on pitch conditions and bowler's recent form.`;
+    }
+  }
+  return 'Dot\n65% confidence.';
+}
+
+function getMockReactions(ball, userPrediction, predictorPrediction) {
+  const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  const outcome = ball.outcome; // 'Dot' | 'Boundary' | 'Wicket' | 'Other'
+  // Map 'Other' to 'dot' for pool lookups (no 'other' slot in pool)
+  const poolKey = ['Dot', 'Boundary', 'Wicket'].includes(outcome) ? outcome.toLowerCase() : 'dot';
+
+  const userCorrect = userPrediction === outcome;
+
+  const pMatch = (predictorPrediction || '').match(/\b(Dot|Boundary|Wicket|Other)\b/i);
+  const predictorCorrect = pMatch && pMatch[0].toLowerCase() === outcome.toLowerCase();
+
+  const statsKey = `${poolKey}_user_${userCorrect ? 'correct' : 'wrong'}`;
+  const roastKey = `${poolKey}_user_${userCorrect ? 'correct' : 'wrong'}`;
+  const predKey  = `${poolKey}_predictor_${predictorCorrect ? 'correct' : 'wrong'}`;
+
+  return {
+    statsNerd:  rand(mockPool.statsNerd[statsKey]  || mockPool.statsNerd.dot_user_wrong),
+    roastAgent: rand(mockPool.roastAgent[roastKey] || mockPool.roastAgent.dot_user_wrong),
+    predictor:  rand(mockPool.predictor[predKey]   || mockPool.predictor.dot_predictor_wrong),
+  };
+}
+
+// --- LIVE GEMINI FUNCTIONS (used only for Ask the Panel) ---
+
+async function callAgentWithTools(systemPrompt, userPrompt, temperature) {
+  try {
+    const chat = ai.chats.create({
+      model: MODEL,
+      config: {
+        systemInstruction: systemPrompt,
+        temperature,
+        tools: [{ functionDeclarations: toolDeclarations }]
+      }
+    });
+
+    let response = await chat.sendMessage({ message: userPrompt });
+
+    while (response.functionCalls && response.functionCalls.length > 0) {
+      const call = response.functionCalls[0];
+      let result;
+      if (call.name === 'get_player_career_stats') result = tools.get_player_career_stats(call.args.player_name);
+      else if (call.name === 'get_batsman_vs_bowler') result = tools.get_batsman_vs_bowler(call.args.batsman, call.args.bowler);
+      else if (call.name === 'get_recent_form') result = tools.get_recent_form(call.args.player_name);
+      response = await chat.sendMessage({
+        message: [{ functionResponse: { name: call.name, response: { result } } }]
+      });
+    }
+    return response.text;
+  } catch (error) {
+    console.error('Gemini tool call error:', error.message);
+    return 'Stats unavailable right now.';
+  }
+}
+
+async function callAgent(systemPrompt, userPrompt, temperature) {
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: userPrompt,
+      config: { systemInstruction: systemPrompt, temperature }
+    });
+    return response.text;
+  } catch (error) {
+    console.error('Gemini error:', error.message);
+    return null;
+  }
+}
+
+// Ask the Panel — 3 live Gemini calls in parallel (judges see this live)
+async function getPanelAnswers(question, contextString) {
+  const userPrompt = `MATCH CONTEXT: ${contextString}\n\nA fan watching the game asks: "${question}"\n\nAnswer in character. Maximum 2 sentences. Stay on cricket — if the question is unrelated, roast them for it (Roast Agent), redirect to stats (Stats Nerd), or pivot to a prediction (Predictor).`;
+
+  const [statsNerd, roastAgent, predictor] = await Promise.all([
+    callAgentWithTools(STATS_NERD_PROMPT, userPrompt, 0.3),
+    callAgent(ROAST_AGENT_PROMPT, userPrompt, 0.9),
+    callAgent(PREDICTOR_PROMPT, userPrompt, 0.7),
+  ]);
+
+  return {
+    statsNerd:  statsNerd  || 'Stats unavailable.',
+    roastAgent: roastAgent || 'No comment.',
+    predictor:  predictor  || 'Recalculating...',
+  };
+}
+
+module.exports = { getMockPrediction, getMockReactions, getPanelAnswers };

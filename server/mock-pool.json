@@ -1,0 +1,134 @@
+{
+  "statsNerd": {
+    "boundary_user_correct": [
+      "The batsman has maintained a strike rate of 145.2 against this length. This outcome aligns with historical data for the current pitch conditions.",
+      "A standard boundary strike. The bowler's economy rate has now increased to 9.2 per over.",
+      "The batter exploits the shorter boundary dimensions. His average boundary frequency is one every 4.2 deliveries.",
+      "An expected result given the fielder's deep position. The batter is currently batting at a career-high strike rate.",
+      "Data suggests a high probability of runs here. The pitch hardness index supports this trajectory."
+    ],
+    "boundary_user_wrong": [
+      "The delivery was pitched in the slot. Historically, 68% of deliveries in this zone result in boundaries.",
+      "Unexpected sequence given the bowler's recent line and length. The batter has capitalized on the deviation error.",
+      "An anomaly in the bowling pattern. The batter's conversion rate to boundaries has spiked in this phase of play.",
+      "Statistical deviation noted. The bowler failed to maintain the required tight line on the off stump.",
+      "The batter's placement was optimal. This boundary deviates from the expected median run rate for this over."
+    ],
+    "wicket_user_correct": [
+      "The batter's dismissal probability increases by 15% against this specific spin variation. The data predicted this outcome accurately.",
+      "A textbook dismissal. The batter's weakness against inswinging deliveries remains a statistical trend.",
+      "The bowler's strike rate improves significantly when attacking the stumps. A logical progression of the current over.",
+      "The fielder has a 75% success rate on catches in this sector. Consistent with the match metrics.",
+      "The batter has been dismissed in this manner four times in the last ten innings. Pattern confirmed."
+    ],
+    "wicket_user_wrong": [
+      "The delivery was projected to miss the stumps by 4cm. A rare collapse of the batter's technique.",
+      "Bowling analysis indicated a low probability of a wicket here. The batter's error was anomalous.",
+      "Contrary to the trend, the bowler has found an opening. This dismissal ranks in the 90th percentile of unlikely outcomes.",
+      "The batter's defensive technique usually mitigates this specific line. A statistical outlier.",
+      "Unexpected result given the current partnership's stability. The batter's lapse is not reflected in recent data."
+    ],
+    "dot_user_correct": [
+      "The bowler maintains a dot ball percentage of 45%. This is well within the expected range.",
+      "A standard dot delivery given the current defensive field setup. Pace variation was minimal.",
+      "The batter lacks the necessary reach for this length. A predictable outcome for a dot ball.",
+      "Pressure is mounting with the dot ball percentage rising. The bowler is executing the plan perfectly.",
+      "A textbook dot ball. The bowler's line remains outside the hitting arc."
+    ],
+    "dot_user_wrong": [
+      "The batter was positioned for a strike. A surprising dot ball given the scoring potential.",
+      "Statistical models favored a boundary effort here. The batter's restraint is an anomaly.",
+      "The bowler's delivery lacked the required pace to stifle the batter. An unexpected defensive outcome.",
+      "Surprisingly, the batter chose not to engage. This deviates from the aggressive approach established earlier.",
+      "The delivery trajectory was favorable for a strike. The batter's passivity is statistically unusual."
+    ]
+  },
+  "roastAgent": {
+    "boundary_user_correct": [
+      "Finally, you got one right. Even a broken clock is right twice a day.",
+      "Don't get cocky. You probably guessed that by flipping a coin.",
+      "Wow, you predicted a four. Do you want a medal for basic common sense?",
+      "Congratulations, you have the IQ of a goldfish who watches cricket. Enjoy the crumbs.",
+      "You got lucky. Don't act like you're some kind of genius analyst."
+    ],
+    "boundary_user_wrong": [
+      "Absolute clown. Stop betting your salary on this game, you're clearly broke.",
+      "This is why you're still in your parents' basement. Terrible read of the game.",
+      "I’ve seen better predictions from a toddler banging on a keyboard. Do better.",
+      "Brain dead take. Maybe stick to watching cartoons instead of cricket.",
+      "You are a walking L. Stick to your day job, because this is embarrassing."
+    ],
+    "wicket_user_correct": [
+      "Found one, did you? Even a blind squirrel finds a nut occasionally.",
+      "Don't let this go to your head. You’re still a liability.",
+      "You finally predicted a wicket. Try not to choke on your pride.",
+      "Wow, a correct guess. Someone give this guy a participation trophy.",
+      "Predicting a wicket doesn't make you an expert. It makes you lucky."
+    ],
+    "wicket_user_wrong": [
+      "Clown behavior. You really thought that was a wicket?",
+      "This is why you shouldn't be allowed to have opinions. Embarrassing.",
+      "Pure comedy watching you struggle to read the game. Sit down.",
+      "Stick to checkers. Cricket is clearly too complex for that tiny brain.",
+      "You are the reason people think cricket fans are delusional. Total fail."
+    ],
+    "dot_user_correct": [
+      "Predicting a dot ball? How exciting. You must be fun at parties.",
+      "Wow, you’re a real mastermind. You predicted nothing happening.",
+      "Big brain move there. Are you proud of yourself yet?",
+      "You’re really scraping the bottom of the barrel for these wins.",
+      "Congrats. You’ve mastered the art of predicting boredom."
+    ],
+    "dot_user_wrong": [
+      "You honestly thought that was going to be a dot? Absolute muppet.",
+      "My dog has a better pulse on the game than you do. Embarrassing.",
+      "Please delete your account. You clearly have no idea what you're watching.",
+      "Imagine being this wrong consistently. Take a bow, you're a disaster.",
+      "You couldn't predict the sun rising in the east. Just stop."
+    ]
+  },
+  "predictor": {
+    "boundary_predictor_correct": [
+      "I told you! My predictive algorithm is firing on all cylinders today.",
+      "Nailed it. It’s almost too easy when I’m this in sync with the game.",
+      "I predicted that boundary perfectly. Pure brilliance.",
+      "Another one in the bag. I’m currently on a streak of absolute genius.",
+      "I see the game in slow motion. That boundary was inevitable."
+    ],
+    "boundary_predictor_wrong": [
+      "Well, that didn't go according to plan. Maybe I was off by a fraction.",
+      "I misread the bowler's intent there. My apologies, I'll get the next one.",
+      "That wasn't in the script. I'm taking a small hit on this prediction.",
+      "I clearly overestimated the defense. A rare slip-up on my part.",
+      "I’m human after all. That outcome was completely unexpected."
+    ],
+    "wicket_predictor_correct": [
+      "I saw that collapse coming a mile away. My analysis is flawless.",
+      "Precision is my middle name. Another wicket in the books.",
+      "I predicted the fall of that wicket with absolute certainty. Too easy.",
+      "My intuition is unmatched. A perfect call on the bowler's success.",
+      "That dismissal was exactly as I forecasted. I’m feeling unstoppable."
+    ],
+    "wicket_predictor_wrong": [
+      "I thought the batter would hold firm. Clearly, I misjudged the pressure.",
+      "My bad on that one. I expected a much more resilient performance.",
+      "I was completely wrong about that line. The game is full of surprises.",
+      "I’ll own that miss. The batter played better than I gave him credit for.",
+      "That was a complete curveball. My model didn't see that coming."
+    ],
+    "dot_predictor_correct": [
+      "I locked that dot ball in early. I’m reading this pitch perfectly.",
+      "Another dot, just as I suspected. My timing is impeccable.",
+      "Predicting the quiet moments is my specialty. Right on the money.",
+      "The pressure was building, and I knew a dot was inevitable. Perfect call.",
+      "Score another one for my records. I’m on fire today."
+    ],
+    "dot_predictor_wrong": [
+      "I thought the batter would look for a single. Guess I overthought that.",
+      "My defensive read was off. I'm going to recalibrate for the next ball.",
+      "That didn't pan out. I expected an aggressive move there.",
+      "A minor tactical miscalculation on my end. I'll shake it off.",
+      "I’m disappointed in that prediction. I really thought he'd rotate the strike."
+    ]
+  }
+}

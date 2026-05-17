@@ -1,0 +1,189 @@
+/* Sledge — design tokens. Stadium-floodlight aesthetic. */
+:root {
+  /* Surfaces — deep ink with a touch of cool blue */
+  --ink-0: oklch(0.13 0.012 240);   /* deepest */
+  --ink-1: oklch(0.165 0.012 240);  /* surface */
+  --ink-2: oklch(0.205 0.012 240);  /* raised */
+  --ink-3: oklch(0.255 0.012 240);  /* card */
+  --ink-4: oklch(0.32 0.012 240);   /* divider */
+  --ink-5: oklch(0.42 0.012 240);   /* muted text */
+
+  /* Floodlight whites */
+  --light-0: oklch(0.99 0.004 95);  /* pure */
+  --light-1: oklch(0.95 0.005 95);  /* primary text */
+  --light-2: oklch(0.82 0.008 95);  /* secondary text */
+  --light-3: oklch(0.62 0.012 240); /* tertiary */
+
+  /* Pitch green — the hero accent */
+  --pitch-0: oklch(0.85 0.16 142);
+  --pitch-1: oklch(0.78 0.18 142);
+  --pitch-2: oklch(0.62 0.18 145);
+  --pitch-3: oklch(0.32 0.10 145);
+  --pitch-bg: oklch(0.22 0.04 145);
+
+  /* Wicket red */
+  --red-0: oklch(0.78 0.20 25);
+  --red-1: oklch(0.68 0.22 25);
+  --red-2: oklch(0.55 0.20 25);
+  --red-bg: oklch(0.24 0.06 25);
+
+  /* Agent accents (distinct visual identities) */
+  --stats: oklch(0.78 0.14 220);    /* cool cyan-blue */
+  --stats-bg: oklch(0.22 0.04 230);
+  --roast: oklch(0.74 0.20 30);     /* hot coral */
+  --roast-bg: oklch(0.24 0.07 30);
+  --predict: oklch(0.82 0.16 90);   /* floodlight amber */
+  --predict-bg: oklch(0.24 0.05 90);
+
+  /* Other */
+  --boundary: oklch(0.86 0.18 95);  /* sixes/fours */
+  --dot: oklch(0.55 0.012 240);
+
+  /* Type */
+  --f-display: "Geist", -apple-system, system-ui, sans-serif;
+  --f-body: "Geist", -apple-system, system-ui, sans-serif;
+  --f-mono: "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
+
+  /* Radii */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+}
+
+/* ---------- shared screen baseline ---------- */
+.sl-screen {
+  width: 100%; height: 100%;
+  background: var(--ink-0);
+  color: var(--light-1);
+  font-family: var(--f-body);
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
+  display: flex; flex-direction: column;
+}
+/* content wrapper: centers readable area on wide screens */
+.sl-content {
+  width: 100%;
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.sl-mono { font-family: var(--f-mono); font-feature-settings: "tnum","ss01"; letter-spacing: 0; }
+
+/* faint dot grid behind hero areas */
+.sl-grid::before {
+  content: "";
+  position: absolute; inset: 0;
+  background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.04) 1px, transparent 0);
+  background-size: 16px 16px;
+  mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* keyframes */
+@keyframes sl-pulse-dot {
+  0%,100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.5; }
+}
+@keyframes sl-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes sl-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes sl-shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: 200px 0; }
+}
+@keyframes sl-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-8px); }
+  30% { transform: translateX(7px); }
+  45% { transform: translateX(-5px); }
+  60% { transform: translateX(4px); }
+  75% { transform: translateX(-2px); }
+}
+
+.sl-live-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--red-1);
+  animation: sl-pulse-dot 1.4s ease-in-out infinite;
+  box-shadow: 0 0 0 0 var(--red-1);
+  flex-shrink: 0;
+}
+
+/* primary button */
+.sl-btn {
+  border: none; cursor: pointer;
+  font-family: var(--f-display); font-weight: 600;
+  letter-spacing: -0.01em;
+  border-radius: 999px;
+  padding: 14px 22px; font-size: 15px;
+  background: var(--light-0); color: var(--ink-0);
+  display: inline-flex; align-items: center; gap: 8px;
+  transition: transform .12s ease;
+}
+.sl-btn:active { transform: scale(0.97); }
+
+/* tag */
+.sl-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  font-family: var(--f-mono);
+  font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--light-2);
+}
+
+/* monogram badge */
+.sl-monogram {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--f-mono); font-weight: 600;
+  font-size: 12px; letter-spacing: 0.02em;
+  color: var(--ink-0);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.sl-monogram::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.25), transparent 60%);
+}
+
+/* divider */
+.sl-rule {
+  border: none; height: 1px; margin: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+}
+
+/* scrollbar hide */
+.sl-screen ::-webkit-scrollbar { display: none; }
+.sl-screen { scrollbar-width: none; }
+
+/* desktop: centered card with edge glow */
+@media (min-width: 640px) {
+  body {
+    background: oklch(0.08 0.012 240);
+  }
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse at 50% 0%, oklch(0.22 0.06 145 / 0.2), transparent 50%),
+      radial-gradient(ellipse at 50% 100%, oklch(0.22 0.08 240 / 0.18), transparent 40%);
+    pointer-events: none;
+  }
+}
+
+/* hover lift for interactive cards */
+@media (hover: hover) {
+  .sl-btn:hover { transform: scale(1.02); }
+}
+

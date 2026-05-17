@@ -1,0 +1,86 @@
+{
+  "info": {
+    "teams": ["Mumbai Indians", "Kolkata Knight Riders"],
+    "venue": "Wankhede Stadium, Mumbai",
+    "dates": ["2026-05-17"],
+    "toss": { "winner": "Mumbai Indians", "decision": "bat" }
+  },
+  "innings": [
+    {
+      "team": "Mumbai Indians",
+      "overs": [
+        {
+          "over": 0,
+          "deliveries": [
+            { "batter": "Rohit Sharma", "non_striker": "Ishan Kishan", "bowler": "Mitchell Starc", "runs": { "batter": 0, "extras": 0, "total": 0 } },
+            { "batter": "Rohit Sharma", "non_striker": "Ishan Kishan", "bowler": "Mitchell Starc", "runs": { "batter": 0, "extras": 1, "total": 1 }, "extras": { "wides": 1 } },
+            { "batter": "Rohit Sharma", "non_striker": "Ishan Kishan", "bowler": "Mitchell Starc", "runs": { "batter": 4, "extras": 0, "total": 4 } },
+            { "batter": "Rohit Sharma", "non_striker": "Ishan Kishan", "bowler": "Mitchell Starc", "runs": { "batter": 1, "extras": 0, "total": 1 } },
+            { "batter": "Ishan Kishan", "non_striker": "Rohit Sharma", "bowler": "Mitchell Starc", "runs": { "batter": 2, "extras": 0, "total": 2 } },
+            { "batter": "Ishan Kishan", "non_striker": "Rohit Sharma", "bowler": "Mitchell Starc", "runs": { "batter": 0, "extras": 0, "total": 0 } },
+            { "batter": "Ishan Kishan", "non_striker": "Rohit Sharma", "bowler": "Mitchell Starc", "runs": { "batter": 6, "extras": 0, "total": 6 } }
+          ]
+        },
+        {
+          "over": 1,
+          "deliveries": [
+            { "batter": "Rohit Sharma", "non_striker": "Ishan Kishan", "bowler": "Harshit Rana", "runs": { "batter": 0, "extras": 0, "total": 0 } },
+            { "batter": "Rohit Sharma", "non_striker": "Ishan Kishan", "bowler": "Harshit Rana", "runs": { "batter": 0, "extras": 0, "total": 0 }, "wickets": [{ "player_out": "Rohit Sharma", "kind": "caught" }] },
+            { "batter": "Suryakumar Yadav", "non_striker": "Ishan Kishan", "bowler": "Harshit Rana", "runs": { "batter": 1, "extras": 1, "total": 2 }, "extras": { "noballs": 1 } },
+            { "batter": "Ishan Kishan", "non_striker": "Suryakumar Yadav", "bowler": "Harshit Rana", "runs": { "batter": 4, "extras": 0, "total": 4 } },
+            { "batter": "Ishan Kishan", "non_striker": "Suryakumar Yadav", "bowler": "Harshit Rana", "runs": { "batter": 0, "extras": 0, "total": 0 } },
+            { "batter": "Ishan Kishan", "non_striker": "Suryakumar Yadav", "bowler": "Harshit Rana", "runs": { "batter": 3, "extras": 0, "total": 3 } },
+            { "batter": "Suryakumar Yadav", "non_striker": "Ishan Kishan", "bowler": "Harshit Rana", "runs": { "batter": 1, "extras": 0, "total": 1 } }
+          ]
+        },
+        {
+          "over": 2,
+          "deliveries": [
+            { "batter": "Suryakumar Yadav", "non_striker": "Ishan Kishan", "bowler": "Sunil Narine", "runs": { "batter": 4, "extras": 0, "total": 4 } },
+            { "batter": "Suryakumar Yadav", "non_striker": "Ishan Kishan", "bowler": "Sunil Narine", "runs": { "batter": 0, "extras": 1, "total": 1 }, "extras": { "legbyes": 1 } },
+            { "batter": "Ishan Kishan", "non_striker": "Suryakumar Yadav", "bowler": "Sunil Narine", "runs": { "batter": 6, "extras": 0, "total": 6 } },
+            { "batter": "Ishan Kishan", "non_striker": "Suryakumar Yadav", "bowler": "Sunil Narine", "runs": { "batter": 0, "extras": 0, "total": 0 } },
+            { "batter": "Ishan Kishan", "non_striker": "Suryakumar Yadav", "bowler": "Sunil Narine", "runs": { "batter": 0, "extras": 0, "total": 0 }, "wickets": [{ "player_out": "Ishan Kishan", "kind": "bowled" }] },
+            { "batter": "Tilak Varma", "non_striker": "Suryakumar Yadav", "bowler": "Sunil Narine", "runs": { "batter": 2, "extras": 0, "total": 2 } },
+            { "batter": "Tilak Varma", "non_striker": "Suryakumar Yadav", "bowler": "Sunil Narine", "runs": { "batter": 1, "extras": 0, "total": 1 } }
+          ]
+        },
+        {
+          "over": 3,
+          "deliveries": [
+            { "batter": "Suryakumar Yadav", "non_striker": "Tilak Varma", "bowler": "Andre Russell", "runs": { "batter": 1, "extras": 0, "total": 1 } },
+            { "batter": "Tilak Varma", "non_striker": "Suryakumar Yadav", "bowler": "Andre Russell", "runs": { "batter": 0, "extras": 1, "total": 1 }, "extras": { "wides": 1 } },
+            { "batter": "Tilak Varma", "non_striker": "Suryakumar Yadav", "bowler": "Andre Russell", "runs": { "batter": 4, "extras": 0, "total": 4 } },
+            { "batter": "Tilak Varma", "non_striker": "Suryakumar Yadav", "bowler": "Andre Russell", "runs": { "batter": 2, "extras": 0, "total": 2 } },
+            { "batter": "Tilak Varma", "non_striker": "Suryakumar Yadav", "bowler": "Andre Russell", "runs": { "batter": 0, "extras": 0, "total": 0 } },
+            { "batter": "Tilak Varma", "non_striker": "Suryakumar Yadav", "bowler": "Andre Russell", "runs": { "batter": 6, "extras": 0, "total": 6 } },
+            { "batter": "Tilak Varma", "non_striker": "Suryakumar Yadav", "bowler": "Andre Russell", "runs": { "batter": 1, "extras": 0, "total": 1 } }
+          ]
+        },
+        {
+          "over": 4,
+          "deliveries": [
+            { "batter": "Tilak Varma", "non_striker": "Suryakumar Yadav", "bowler": "Varun Chakaravarthy", "runs": { "batter": 0, "extras": 0, "total": 0 } },
+            { "batter": "Tilak Varma", "non_striker": "Suryakumar Yadav", "bowler": "Varun Chakaravarthy", "runs": { "batter": 1, "extras": 0, "total": 1 } },
+            { "batter": "Suryakumar Yadav", "non_striker": "Tilak Varma", "bowler": "Varun Chakaravarthy", "runs": { "batter": 0, "extras": 0, "total": 0 }, "wickets": [{ "player_out": "Suryakumar Yadav", "kind": "stumped" }] },
+            { "batter": "Hardik Pandya", "non_striker": "Tilak Varma", "bowler": "Varun Chakaravarthy", "runs": { "batter": 4, "extras": 0, "total": 4 } },
+            { "batter": "Hardik Pandya", "non_striker": "Tilak Varma", "bowler": "Varun Chakaravarthy", "runs": { "batter": 0, "extras": 0, "total": 0 } },
+            { "batter": "Hardik Pandya", "non_striker": "Tilak Varma", "bowler": "Varun Chakaravarthy", "runs": { "batter": 2, "extras": 0, "total": 2 } }
+          ]
+        },
+        {
+          "over": 5,
+          "deliveries": [
+            { "batter": "Hardik Pandya", "non_striker": "Tilak Varma", "bowler": "Mitchell Starc", "runs": { "batter": 0, "extras": 1, "total": 1 }, "extras": { "wides": 1 } },
+            { "batter": "Hardik Pandya", "non_striker": "Tilak Varma", "bowler": "Mitchell Starc", "runs": { "batter": 6, "extras": 0, "total": 6 } },
+            { "batter": "Hardik Pandya", "non_striker": "Tilak Varma", "bowler": "Mitchell Starc", "runs": { "batter": 1, "extras": 0, "total": 1 } },
+            { "batter": "Tilak Varma", "non_striker": "Hardik Pandya", "bowler": "Mitchell Starc", "runs": { "batter": 0, "extras": 0, "total": 0 }, "wickets": [{ "player_out": "Tilak Varma", "kind": "lbw" }] },
+            { "batter": "Tim David", "non_striker": "Hardik Pandya", "bowler": "Mitchell Starc", "runs": { "batter": 4, "extras": 0, "total": 4 } },
+            { "batter": "Tim David", "non_striker": "Hardik Pandya", "bowler": "Mitchell Starc", "runs": { "batter": 6, "extras": 0, "total": 6 } },
+            { "batter": "Tim David", "non_striker": "Hardik Pandya", "bowler": "Mitchell Starc", "runs": { "batter": 2, "extras": 0, "total": 2 } }
+          ]
+        }
+      ]
+    }
+  ]
+}
