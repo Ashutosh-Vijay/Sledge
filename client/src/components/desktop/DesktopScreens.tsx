@@ -1,8 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Desktop variants of mobile screens — wide layouts that use the full viewport.
 // Each accepts the same props as its mobile counterpart, so swapping in App.tsx
 // is a one-line conditional.
 
-import { Monogram, AgentAvatar, StatusPill, Ic } from '../Shared';
+import React from 'react';
+import { Monogram, AgentAvatar, StatusPill, Ic, Chip, AGENT_META, type AgentId } from '../Shared';
+import type { FeedItem } from '../screens/LivePreball';
 
 // ──────────────────────────────────────────────────────────────
 // Shared desktop chrome: persistent top nav + stadium ambience
@@ -743,8 +746,100 @@ export function RecapDesktop({ userScore, predictorScore, streak, teams, onBack,
           <button onClick={onBack} className="sl-btn" style={{
             marginTop: 32, width: "100%", justifyContent: "center", padding: "16px", fontSize: 15,
           }}>
-            Back to matches
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// AskPanel (desktop)
+// ──────────────────────────────────────────────────────────────
+export function AskPanelDesktop({ feed, matchScore, over, onAsk, onBack, disabled, onNavigate, onUserProfile }: {
+  feed: FeedItem[];
+  matchScore: string;
+  over: string;
+  onAsk: (q: string) => void;
+  onBack: () => void;
+  disabled: boolean;
+  onNavigate?: (id: string) => void;
+  onUserProfile?: () => void;
+}) {
+  const [text, setText] = React.useState('');
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => { ref.current?.scrollIntoView({ behavior: 'smooth' }); }, [feed]);
+  const submit = () => { const q = text.trim(); if (!q || disabled) return; onAsk(q); setText(''); };
+  const AM: Record<string, AgentId> = { statsNerd: 'stats', roastAgent: 'roast', predictor: 'predict' };
+
+  return (
+    <div className="sl-screen" style={{ overflow: "hidden", height: "100dvh" }}>
+      <DesktopAppBar active="panel" onNavigate={onNavigate} onUserProfile={onUserProfile} />
+
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: 800, margin: "0 auto", width: "100%", padding: "24px 40px", overflow: "hidden" }}>
+        
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 24, borderBottom: "1px solid rgba(255,255,255,0.05)", marginBottom: 24 }}>
+          <div onClick={onBack} style={{ width: 36, height: 36, borderRadius: 12, background: "var(--ink-1)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--light-2)", cursor: "pointer", transition: "background 0.15s ease" }}><Ic.back /></div>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span className="sl-live-dot" />
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 11, color: "var(--red-0)", letterSpacing: 0.08 }}>LIVE</span>
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 11, color: "var(--light-3)" }}>· {over} ov · {matchScore}</span>
+            </div>
+            <div style={{ fontSize: 18, color: "var(--light-0)", marginTop: 4, fontWeight: 500, letterSpacing: -0.01 }}>Ask the Panel</div>
+          </div>
+        </div>
+
+        {/* Feed */}
+        <div style={{ flex: 1, overflowY: "auto", paddingRight: 12 }}>
+          {feed.filter(f => f.agentId === 'user' || AM[f.agentId]).map((item) => {
+            if (item.agentId === 'user') {
+              return (<div key={item.id} style={{ display: "flex", justifyContent: "flex-end", marginBottom: 24 }}>
+                <div style={{ maxWidth: "70%", padding: "14px 18px", background: "var(--light-0)", color: "var(--ink-0)", borderRadius: "20px 20px 4px 20px", fontSize: 14.5, lineHeight: 1.45, fontWeight: 500 }}>{item.message}</div>
+              </div>);
+            }
+            const ak = AM[item.agentId]; if (!ak) return null;
+            const m = AGENT_META[ak];
+            return (<div key={item.id} style={{ display: "flex", gap: 16, animation: "sl-fade-up .35s ease both", marginBottom: 24 }}>
+              <AgentAvatar agent={ak} size={36} />
+              <div style={{ flex: 1, maxWidth: "85%" }}>
+                <div style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, letterSpacing: 0.08, color: m.color, textTransform: "uppercase" as const, marginBottom: 6, fontWeight: 500 }}>{m.name}</div>
+                <div style={{ background: m.bg, borderRadius: "4px 16px 16px 16px", padding: "14px 18px", fontSize: 14, lineHeight: 1.5, color: "var(--light-1)", border: "1px solid rgba(255,255,255,0.04)" }}>{item.message}</div>
+              </div>
+            </div>);
+          })}
+          {disabled && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, opacity: 0.8, animation: "sl-fade-up .25s ease", padding: "12px", background: "rgba(255,255,255,0.03)", borderRadius: 12, marginTop: 8 }}>
+              <div style={{ display: "flex", gap: 10 }}>
+                {(['stats', 'roast', 'predict'] as AgentId[]).map(agent => (
+                  <AgentAvatar key={agent} agent={agent} size={24} />
+                ))}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {[0, 1, 2].map(i => (
+                    <span key={i} style={{ width: 5, height: 5, borderRadius: 3, background: "var(--light-2)", animation: `sl-pulse-dot 1.1s ${i * 0.15}s ease-in-out infinite` }} />
+                  ))}
+                </div>
+                <span style={{ fontSize: 12, color: "var(--light-3)", fontFamily: "var(--f-mono)" }}>Agents analyzing & synthesizing audio...</span>
+              </div>
+            </div>
+          )}
+          
+          <div style={{ marginTop: 30, display: "flex", flexWrap: "wrap", gap: 10 }}>
+            <Chip onClick={() => onAsk("Who wins this match?")}>Who wins?</Chip>
+            <Chip onClick={() => onAsk("Win probability now?")}>Win prob?</Chip>
+            <Chip onClick={() => onAsk("Roast my last call")}>Roast me</Chip>
+          </div>
+          <div ref={ref} style={{ height: 20 }} />
+        </div>
+
+        {/* Input */}
+        <div style={{ marginTop: 24, padding: "8px 8px 8px 18px", borderRadius: 999, background: "var(--ink-1)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <input type="text" value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} placeholder="Ask the panel..." disabled={disabled} maxLength={500}
+            style={{ flex: 1, fontSize: 15, color: "var(--light-0)", background: "transparent", border: "none", outline: "none", fontFamily: "var(--f-body)" }} />
+          <button onClick={submit} disabled={disabled || !text.trim()} style={{ width: 44, height: 44, borderRadius: 999, border: "none", background: "var(--pitch-1)", color: "var(--ink-0)", display: "flex", alignItems: "center", justifyContent: "center", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled || !text.trim() ? 0.5 : 1, transition: "opacity 0.15s ease" }}><Ic.send /></button>
         </div>
       </div>
     </div>

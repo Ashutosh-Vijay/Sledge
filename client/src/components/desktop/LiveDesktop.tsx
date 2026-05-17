@@ -544,8 +544,10 @@ function groupFeedByAgent(feed: FeedItem[]): { stats: LaneMsg[]; roast: LaneMsg[
     };
 
     if (item.agentId === 'statsNerd') {
-      // Inject a fake tool call breadcrumb for the most recent stats nerd message
-      if (stats.length === 0 && item.message.length > 30) {
+      if (item.isProactive) {
+        msg.tool = "⚠️ WICKET BALL PREDICTED";
+        msg.message = `[PROACTIVE] ${msg.message}`;
+      } else if (stats.length === 0 && item.message.length > 30) {
         const playerName = currentOver.includes('→')
           ? currentOver.split('→')[0].split(' · ')[1]?.trim()
           : undefined;

@@ -153,7 +153,7 @@ export function PredictionButtons({ selected, disabled, onPredict }: {
     { id: "Dot" as const,      glyph: "·",  sub: "no run" },
     { id: "Boundary" as const, glyph: "4",  sub: "or six" },
     { id: "Wicket" as const,   glyph: "W",  sub: "out" },
-    { id: "Other" as const,    glyph: "1+", sub: "runs" },
+    { id: "Other" as const,    glyph: "Other", sub: "extras/runs" },
   ];
   return (
     <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", flexShrink: 0 }}>
@@ -177,7 +177,7 @@ export function PredictionButtons({ selected, disabled, onPredict }: {
               fontFamily: "var(--f-display)",
               opacity: disabled && !isSel ? 0.5 : 1,
             }}>
-              <span style={{ fontSize: 22, fontWeight: 600, letterSpacing: -0.02, lineHeight: 1 }}>{c.glyph}</span>
+              <span style={{ fontSize: c.id === 'Other' ? 16 : 22, fontWeight: 600, letterSpacing: -0.02, lineHeight: 1 }}>{c.glyph}</span>
               <span style={{ fontSize: 11.5, fontWeight: 500, letterSpacing: -0.01 }}>{c.id}</span>
               <span style={{ fontFamily: "var(--f-mono)", fontSize: 8.5, color: isSel ? "var(--ink-3)" : "var(--light-3)", letterSpacing: 0.06, textTransform: "uppercase" as const }}>{c.sub}</span>
             </button>
@@ -199,6 +199,8 @@ export type FeedItem = {
   ballRuns?: number;
   ballLabel?: string;
   userCorrect?: boolean;
+  // only for proactive
+  isProactive?: boolean;
 };
 
 const AGENT_MAP: Record<string, AgentId> = {
@@ -249,7 +251,7 @@ export function ScreenLivePreball({
   userPrediction, predictorPrediction, onPredict,
   feed, isBallPlaying, isAIFetching,
   onBack, onAskPanel, onNavigate,
-  recentBalls,
+  recentBalls, forcePlayNextBall,
 }: {
   ball: Ball | null;
   matchScore: string;
@@ -266,6 +268,7 @@ export function ScreenLivePreball({
   onAskPanel: () => void;
   onNavigate?: (id: string) => void;
   recentBalls: { run: string; c: string; over: number }[];
+  forcePlayNextBall: (p: string) => void;
 }) {
   const feedEndRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
@@ -340,17 +343,30 @@ export function ScreenLivePreball({
             // Agent message
             const agentKey = AGENT_MAP[item.agentId];
             if (!agentKey) return null;
+            if (item.isProactive) {
+              return (
+                <div key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4, marginBottom: 4 }}>
+                  <div style={{ fontFamily: 'var(--f-mono)', fontSize: 9.5, color: 'var(--stats)', letterSpacing: 0.08, background: 'rgba(56, 189, 248, 0.1)', padding: '4px 8px', borderRadius: 4, alignSelf: 'flex-start', border: '1px solid rgba(56, 189, 248, 0.2)' }}>⚠️ PROACTIVE INTERVENTION</div>
+                  <AgentLine agent={agentKey} message={item.message} mono={item.agentId === 'statsNerd'} />
+                </div>
+              );
+            }
             return <AgentLine key={item.id} agent={agentKey} message={item.message} mono={item.agentId === 'statsNerd'} />;
           })}
           {(isBallPlaying && isAIFetching) && (
-            <div style={{ display: "flex", gap: 10, opacity: 0.7, animation: "sl-fade-up .25s ease" }}>
-              {(['stats', 'roast', 'predict'] as AgentId[]).map(agent => (
-                <AgentAvatar key={agent} agent={agent} size={20} />
-              ))}
-              <div style={{ display: "flex", alignItems: "center", gap: 4, paddingTop: 4 }}>
-                {[0, 1, 2].map(i => (
-                  <span key={i} style={{ width: 5, height: 5, borderRadius: 3, background: "var(--light-3)", animation: `sl-pulse-dot 1.1s ${i * 0.15}s ease-in-out infinite` }} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, opacity: 0.8, animation: "sl-fade-up .25s ease", padding: "12px", background: "rgba(255,255,255,0.03)", borderRadius: 12, marginTop: 8 }}>
+              <div style={{ display: "flex", gap: 10 }}>
+                {(['stats', 'roast', 'predict'] as AgentId[]).map(agent => (
+                  <AgentAvatar key={agent} agent={agent} size={24} />
                 ))}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {[0, 1, 2].map(i => (
+                    <span key={i} style={{ width: 5, height: 5, borderRadius: 3, background: "var(--light-2)", animation: `sl-pulse-dot 1.1s ${i * 0.15}s ease-in-out infinite` }} />
+                  ))}
+                </div>
+                <span style={{ fontSize: 12, color: "var(--light-3)", fontFamily: "var(--f-mono)" }}>Agents analyzing & synthesizing audio...</span>
               </div>
             </div>
           )}
@@ -358,11 +374,14 @@ export function ScreenLivePreball({
           <div ref={feedEndRef} />
         </div>
 
-        <PredictionButtons
-          selected={userPrediction}
-          disabled={isBallPlaying || isPaused || userPrediction !== null || isAIFetching}
-          onPredict={onPredict}
-        />
+            <PredictionButtons
+              selected={userPrediction}
+              disabled={isBallPlaying || userPrediction !== null}
+              onPredict={(p) => {
+                onPredict(p);
+                forcePlayNextBall(p);
+              }}
+            />
       </div>
 
       <BottomMini active="matches" onNavigate={onNavigate} />

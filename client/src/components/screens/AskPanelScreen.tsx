@@ -51,7 +51,23 @@ export function ScreenAskPanel({ feed, matchScore, over, onAsk, onBack, disabled
             </div>
           </div>);
         })}
-        {disabled && <div style={{ display: "flex", gap: 10, opacity: 0.7 }}><AgentAvatar agent="stats" size={24} /><div style={{ display: "flex", alignItems: "center", gap: 4, paddingTop: 8 }}>{[0,1,2].map(i => <span key={i} style={{ width: 5, height: 5, borderRadius: 3, background: "var(--stats)", animation: `sl-pulse-dot 1.1s ${i*0.15}s ease-in-out infinite` }} />)}</div></div>}
+          {disabled && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, opacity: 0.8, animation: "sl-fade-up .25s ease", padding: "12px", background: "rgba(255,255,255,0.03)", borderRadius: 12, marginTop: 8 }}>
+              <div style={{ display: "flex", gap: 10 }}>
+                {(['stats', 'roast', 'predict'] as AgentId[]).map(agent => (
+                  <AgentAvatar key={agent} agent={agent} size={24} />
+                ))}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {[0, 1, 2].map(i => (
+                    <span key={i} style={{ width: 5, height: 5, borderRadius: 3, background: "var(--light-2)", animation: `sl-pulse-dot 1.1s ${i * 0.15}s ease-in-out infinite` }} />
+                  ))}
+                </div>
+                <span style={{ fontSize: 12, color: "var(--light-3)", fontFamily: "var(--f-mono)" }}>Agents analyzing & synthesizing audio...</span>
+              </div>
+            </div>
+          )}
         <div style={{ marginTop: 20, display: "flex", flexWrap: "wrap", gap: 6 }}>
           <Chip onClick={() => onAsk("Who wins this match?")}>Who wins?</Chip>
           <Chip onClick={() => onAsk("Win probability now?")}>Win prob?</Chip>

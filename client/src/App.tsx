@@ -6,7 +6,7 @@ import { ScreenMatchDetail } from './components/screens/MatchDetail';
 import { ScreenLivePreball } from './components/screens/LivePreball';
 import type { FeedItem } from './components/screens/LivePreball';
 import { LiveDesktop } from './components/desktop/LiveDesktop';
-import { OnboardingDesktop, HomeDesktop, MatchDetailDesktop, PanelDesktop, YouDesktop, RecapDesktop } from './components/desktop/DesktopScreens';
+import { OnboardingDesktop, HomeDesktop, MatchDetailDesktop, PanelDesktop, YouDesktop, RecapDesktop, AskPanelDesktop } from './components/desktop/DesktopScreens';
 import { ScreenAskPanel } from './components/screens/AskPanelScreen';
 import { ScreenRecap } from './components/screens/Recap';
 import { ScreenPanel } from './components/screens/PanelScreen';
@@ -20,6 +20,18 @@ const SPEEDS = [1, 2, 4];
 const BASE_INTERVAL_MS = 16000;
 
 let audioCtx: AudioContext | null = null;
+const initAudio = () => {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+  }
+};
+if (typeof window !== 'undefined') {
+  window.addEventListener('pointerdown', initAudio, { once: true });
+  window.addEventListener('keydown', initAudio, { once: true });
+}
 function tone(freq: number, dur: number, type: OscillatorType = 'sine', vol = 0.18) {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
@@ -34,10 +46,106 @@ function tone(freq: number, dur: number, type: OscillatorType = 'sine', vol = 0.
     osc.start(); osc.stop(ctx.currentTime + dur);
   } catch { /* audio blocked */ }
 }
-const playBoundary = () => { tone(523, 0.15); setTimeout(() => tone(784, 0.25), 90); };
-const playWicket = () => { tone(220, 0.18, 'sawtooth', 0.22); setTimeout(() => tone(110, 0.4, 'sawtooth', 0.22), 100); };
-const playCorrect = () => { tone(659, 0.12); setTimeout(() => tone(880, 0.22), 80); };
-const playWrong = () => { tone(180, 0.28, 'square', 0.15); };
+const playBoundary = () => { 
+  tone(440, 0.1, 'square', 0.1); 
+  setTimeout(() => tone(554, 0.1, 'square', 0.1), 100); 
+  setTimeout(() => tone(659, 0.2, 'square', 0.15), 200); 
+};
+const playWicket = () => { 
+  tone(220, 0.4, 'sawtooth', 0.25); 
+  tone(233, 0.4, 'sawtooth', 0.25); 
+  setTimeout(() => { tone(110, 0.5, 'sawtooth', 0.3); tone(116, 0.5, 'sawtooth', 0.3); }, 200);
+};
+const playCorrect = () => { 
+  const notes = [523.25, 659.25, 783.99, 1046.50];
+  notes.forEach((freq, i) => setTimeout(() => tone(freq, 0.15, 'sine', 0.2), i * 80));
+};
+const playWrong = () => { 
+  tone(200, 0.2, 'sawtooth', 0.2);
+  setTimeout(() => tone(150, 0.3, 'sawtooth', 0.2), 150);
+  setTimeout(() => tone(100, 0.4, 'sawtooth', 0.3), 300);
+};
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
+const speakMessage = async (agentId: string, message: string) => {
+  if (typeof window === 'undefined') return;
+  const sanitizedMessage = message.replace(/\//g, " or ");
+  console.log(`[TTS] Requesting audio for ${agentId}:`, sanitizedMessage.substring(0, 50));
+  try {
+    const res = await fetch(`${API_URL}/api/tts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: sanitizedMessage })
+    });
+    
+    if (!res.ok) {
+      throw new Error(`Server returned ${res.status}`);
+    }
+
+    const data = await res.json();
+    if (data.audio) {
+      console.log(`[TTS] Audio received, length:`, data.audio.length);
+      if (!audioCtx) audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      
+      const binaryString = atob(data.audio);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      const int16 = new Int16Array(bytes.buffer);
+      const float32 = new Float32Array(int16.length);
+      for (let i = 0; i < int16.length; i++) {
+        float32[i] = int16[i] / 32768.0;
+      }
+      
+      const buffer = audioCtx.createBuffer(1, float32.length, 24000);
+      buffer.getChannelData(0).set(float32);
+      const source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+      
+      if (agentId === 'statsNerd' || agentId === 'stats') {
+        source.playbackRate.value = 0.85;
+      } else if (agentId === 'roastAgent' || agentId === 'roast') {
+        source.playbackRate.value = 1.15;
+      } else {
+        source.playbackRate.value = 1.0;
+      }
+      
+      source.connect(audioCtx.destination);
+      
+      return new Promise((resolve) => {
+        source.onended = resolve;
+        source.start(0);
+      });
+    } else {
+      throw new Error("API returned null audio");
+    }
+  } catch (err) {
+    console.error('TTS playback failed:', err);
+    console.log('[TTS] Falling back to browser SpeechSynthesis');
+    return new Promise((resolve) => {
+      const utterance = new SpeechSynthesisUtterance(sanitizedMessage);
+      
+      // Try to find an Indian English voice
+      const voices = window.speechSynthesis.getVoices();
+      const indianVoice = voices.find(v => v.lang.includes('en-IN') || v.lang.includes('hi-IN'));
+      if (indianVoice) utterance.voice = indianVoice;
+      
+      const rates: Record<string, number> = { statsNerd: 0.85, roastAgent: 1.15, predictor: 1.0 };
+      utterance.rate = rates[agentId] || 1.0;
+      
+      const pitches: Record<string, number> = { statsNerd: 0.5, roastAgent: 1.5, predictor: 1.0 };
+      utterance.pitch = pitches[agentId] || 1.0;
+
+      utterance.onend = resolve;
+      utterance.onerror = resolve;
+      window.speechSynthesis.speak(utterance);
+    });
+  }
+};
 
 // ── "You" Profile Screen ──────────────────────────────────────
 function ScreenYou({ userScore, predictorScore, bestStreak, matchesPlayed, totalBalls, correctPredictions, onBack }: {
@@ -176,7 +284,7 @@ export default function App() {
   const speed = SPEEDS[speedIndex];
   const ballIntervalMs = BASE_INTERVAL_MS / speed;
 
-  const playNextBall = useCallback(async () => {
+  const playNextBall = useCallback(async (forcedPrediction?: string) => {
     if (currentBallIndex >= balls.length || isAIFetching) return;
     setIsBallPlaying(true);
     setIsAIFetching(true);
@@ -215,11 +323,18 @@ export default function App() {
     if (ball.isWicket) playWicket();
     else if (ball.isBoundary) playBoundary();
 
+    const actualUserPrediction = forcedPrediction || userPrediction || 'None';
+    const userWasCorrect = actualUserPrediction === ball.outcome;
+    
+    let pScoreDelta = 0;
+    const pChoiceMatch = predictorPrediction.match(/\b(Dot|Boundary|Wicket|Other)\b/i);
+    const pChoice = pChoiceMatch ? pChoiceMatch[0] : null;
+    const predictorWasCorrect = pChoice && pChoice.toLowerCase() === ball.outcome.toLowerCase();
+
     let uScoreDelta = 0;
-    let userWasCorrect: boolean | undefined = undefined;
-    if (userPrediction) {
+    if (actualUserPrediction !== 'None') {
       setTotalBallsCalled(prev => prev + 1);
-      if (userPrediction === ball.outcome) {
+      if (userWasCorrect) {
         uScoreDelta = 10;
         setUserScore(s => s + 10);
         setCorrectPredictions(prev => prev + 1);
@@ -230,20 +345,15 @@ export default function App() {
         });
         confetti({ particleCount: 80, spread: 70, startVelocity: 35, origin: { y: 0.6 } });
         setTimeout(playCorrect, 200);
-        userWasCorrect = true;
       } else {
         setStreak(0);
         setShake(true);
         setTimeout(() => setShake(false), 500);
         setTimeout(playWrong, 200);
-        userWasCorrect = false;
       }
     }
 
-    let pScoreDelta = 0;
-    const pChoiceMatch = predictorPrediction.match(/\b(Dot|Boundary|Wicket|Other)\b/i);
-    const pChoice = pChoiceMatch ? pChoiceMatch[0] : null;
-    if (pChoice && pChoice.toLowerCase() === ball.outcome.toLowerCase()) {
+    if (predictorWasCorrect) {
       pScoreDelta = 10;
       setPredictorScore(s => s + 10);
     }
@@ -257,7 +367,7 @@ export default function App() {
       ballOutcome: ball.outcome,
       ballRuns: ball.runs,
       ballLabel: dividerLabel,
-      userCorrect: userWasCorrect,
+      userCorrect: actualUserPrediction !== 'None' ? userWasCorrect : undefined,
     });
 
     const matchContext: MatchContext = {
@@ -268,10 +378,23 @@ export default function App() {
     };
 
     try {
-      const reactions = await submitReaction(ball, userPrediction || 'None', predictorPrediction, matchContext);
+      const reactions = await submitReaction(ball, actualUserPrediction, predictorPrediction, matchContext);
+      
       addFeedItem('statsNerd', reactions.statsNerd);
       addFeedItem('roastAgent', reactions.roastAgent);
       addFeedItem('predictor', reactions.predictor);
+
+      const toSpeak = [
+        { id: 'statsNerd', msg: reactions.statsNerd },
+        { id: 'roastAgent', msg: reactions.roastAgent },
+        { id: 'predictor', msg: reactions.predictor }
+      ];
+      const speaker = toSpeak[Math.floor(Math.random() * toSpeak.length)];
+      
+      // Let speakMessage run without blocking the UI, but we can await it 
+      // if we want to delay the NEXT ball from starting.
+      // The user wants audio fast, and UI to update immediately.
+      await speakMessage(speaker.id, speaker.msg);
     } catch (e) {
       console.error(e);
       addFeedItem('roastAgent', "API choked. The agents are all stuck in traffic.");
@@ -284,6 +407,24 @@ export default function App() {
     setCurrentBallIndex(i => i + 1);
   }, [balls, currentBallIndex, userPrediction, predictorPrediction, matchScoreInfo, userScore, predictorScore, isAIFetching]);
 
+  const forcePlayNextBall = useCallback((p: string) => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    playNextBall(p);
+  }, [playNextBall]);
+
+  useEffect(() => {
+    if (userPrediction && !isAIFetching && !isBallPlaying) {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      playNextBall(userPrediction);
+    }
+  }, [userPrediction, isAIFetching, isBallPlaying, playNextBall]);
+
   useEffect(() => {
     if (screen !== 'live' || isPaused || balls.length === 0 || currentBallIndex >= balls.length || isAIFetching) {
       if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
@@ -291,15 +432,18 @@ export default function App() {
     }
 
     if (!predictorPrediction && !isBallPlaying) {
-      setIsAIFetching(true);
+      setTimeout(() => setIsAIFetching(true), 0);
       const ball = balls[currentBallIndex];
       const matchContext: MatchContext = {
         over: ball.over,
         score: `${matchScoreInfo.runs}/${matchScoreInfo.wickets}`,
         userScoreTotal: userScore, predictorScoreTotal: predictorScore
       };
-      fetchNextPrediction(matchContext).then(pred => {
-        setPredictorPrediction(pred);
+      fetchNextPrediction(matchContext, ball).then(res => {
+        setPredictorPrediction(res.prediction);
+        if (res.proactive) {
+          addFeedItem('statsNerd', res.proactive, { isProactive: true });
+        }
         setIsAIFetching(false);
         timerRef.current = setTimeout(playNextBall, ballIntervalMs);
       }).catch(e => {
@@ -318,12 +462,12 @@ export default function App() {
     return () => {
       if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
     };
-  }, [screen, isPaused, balls, currentBallIndex, isAIFetching, playNextBall, ballIntervalMs, predictorPrediction, isBallPlaying]);
+  }, [screen, isPaused, balls, currentBallIndex, isAIFetching, playNextBall, ballIntervalMs, predictorPrediction, isBallPlaying, matchScoreInfo.runs, matchScoreInfo.wickets, predictorScore, userScore]);
 
   // Check for match over
   useEffect(() => {
     if (screen === 'live' && balls.length > 0 && currentBallIndex >= balls.length) {
-      setScreen('recap');
+      setTimeout(() => setScreen('recap'), 0);
     }
   }, [screen, balls, currentBallIndex]);
 
@@ -338,6 +482,15 @@ export default function App() {
     };
     try {
       const answers = await askPanel(question, matchContext);
+      
+      const toSpeak = [
+        { id: 'statsNerd', msg: answers.statsNerd },
+        { id: 'roastAgent', msg: answers.roastAgent },
+        { id: 'predictor', msg: answers.predictor }
+      ];
+      const speaker = toSpeak[Math.floor(Math.random() * toSpeak.length)];
+      speakMessage(speaker.id, speaker.msg);
+
       addFeedItem('statsNerd', answers.statsNerd);
       addFeedItem('roastAgent', answers.roastAgent);
       addFeedItem('predictor', answers.predictor);
@@ -467,19 +620,33 @@ export default function App() {
             onAskPanel={() => setScreen('askPanel')}
             onNavigate={handleNavigate}
             recentBalls={recentBalls}
+            forcePlayNextBall={forcePlayNextBall}
           />
         )
       )}
 
       {screen === 'askPanel' && (
-        <ScreenAskPanel
-          feed={feed}
-          matchScore={matchScore}
-          over={currentBall ? `${currentBall.over}.${currentBall.ball}` : "0.0"}
-          onAsk={handleAsk}
-          onBack={() => setScreen('live')}
-          disabled={askingPanel || isBallPlaying || isAIFetching}
-        />
+        isDesktop ? (
+          <AskPanelDesktop
+            feed={feed}
+            matchScore={matchScore}
+            over={currentBall ? `${currentBall.over}.${currentBall.ball}` : "0.0"}
+            onAsk={handleAsk}
+            onBack={() => setScreen('live')}
+            disabled={askingPanel || isBallPlaying || isAIFetching}
+            onNavigate={handleNavigate}
+            onUserProfile={() => setScreen('you')}
+          />
+        ) : (
+          <ScreenAskPanel
+            feed={feed}
+            matchScore={matchScore}
+            over={currentBall ? `${currentBall.over}.${currentBall.ball}` : "0.0"}
+            onAsk={handleAsk}
+            onBack={() => setScreen('live')}
+            disabled={askingPanel || isBallPlaying || isAIFetching}
+          />
+        )
       )}
 
       {screen === 'recap' && (

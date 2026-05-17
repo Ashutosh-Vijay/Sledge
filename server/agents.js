@@ -63,8 +63,7 @@ function getMockReactions(ball, userPrediction, predictorPrediction) {
   const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
   const outcome = ball.outcome; // 'Dot' | 'Boundary' | 'Wicket' | 'Other'
-  // Map 'Other' to 'dot' for pool lookups (no 'other' slot in pool)
-  const poolKey = ['Dot', 'Boundary', 'Wicket'].includes(outcome) ? outcome.toLowerCase() : 'dot';
+  const poolKey = outcome.toLowerCase();
 
   const userCorrect = userPrediction === outcome;
 
@@ -75,10 +74,25 @@ function getMockReactions(ball, userPrediction, predictorPrediction) {
   const roastKey = `${poolKey}_user_${userCorrect ? 'correct' : 'wrong'}`;
   const predKey  = `${poolKey}_predictor_${predictorCorrect ? 'correct' : 'wrong'}`;
 
+  const inject = (str) => {
+    if (!str) return str;
+    let friendlyOutcome = (outcome || 'nothing').toLowerCase();
+    if (friendlyOutcome === 'other') friendlyOutcome = 'single/extra';
+
+    let friendlyPrediction = (userPrediction || 'nothing').toLowerCase();
+    if (friendlyPrediction === 'other') friendlyPrediction = 'single/extra';
+
+    return str
+      .replace(/{batter}/g, ball?.batter || 'The batter')
+      .replace(/{bowler}/g, ball?.bowler || 'the bowler')
+      .replace(/{userPrediction}/gi, friendlyPrediction)
+      .replace(/{outcome}/gi, friendlyOutcome);
+  };
+
   return {
-    statsNerd:  rand(mockPool.statsNerd[statsKey]  || mockPool.statsNerd.dot_user_wrong),
-    roastAgent: rand(mockPool.roastAgent[roastKey] || mockPool.roastAgent.dot_user_wrong),
-    predictor:  rand(mockPool.predictor[predKey]   || mockPool.predictor.dot_predictor_wrong),
+    statsNerd:  inject(rand(mockPool.statsNerd[statsKey]  || mockPool.statsNerd.dot_user_wrong)),
+    roastAgent: inject(rand(mockPool.roastAgent[roastKey] || mockPool.roastAgent.dot_user_wrong)),
+    predictor:  inject(rand(mockPool.predictor[predKey]   || mockPool.predictor.dot_predictor_wrong)),
   };
 }
 
@@ -145,4 +159,82 @@ async function getPanelAnswers(question, contextString) {
   };
 }
 
-module.exports = { getMockPrediction, getMockReactions, getPanelAnswers };
+function getProactiveIntervention(ball) {
+  // Only intervene for wickets to create that "unlock moment"
+  if (ball.outcome === 'Wicket') {
+    return `Stats Nerd → get_batsman_vs_bowler('${ball.batter}', '${ball.bowler}') → 47ms\n\n${ball.batter} averages 18 in deaths against pace — this is a WICKET BALL.`;
+  }
+  return null;
+}
+
+async function getTTS(text) {
+  const modelsToTry = [
+    'gemini-2.5-flash-preview-tts',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite-preview'
+  ];
+  
+  for (const model of modelsToTry) {
+    try {
+      const res = await ai.models.generateContent({
+        model: model,
+        contents: `Repeat the following text exactly as audio: ${text}`,
+        config: {
+          responseModalities: ['AUDIO'],
+          systemInstruction: "You are a text to speech model. Repeat the exact text provided to you as audio with a distinct Indian accent. Do not generate text responses."
+        }
+      });
+      const parts = res.candidates?.[0]?.content?.parts || [];
+      const audioPart = parts.find(p => p.inlineData);
+      if (audioPart) {
+        return audioPart.inlineData.data;
+      }
+    } catch (e) {
+      console.error(`TTS error with ${model}:`, e.message);
+    }
+  }
+  return null;
+}
+
+let modelIndex = 0;
+const REACTION_MODELS = ['gemma-2-27b-it', 'gemini-2.5-flash-lite-preview', 'gemini-2.5-flash']; // Mapped to the closest real available API models from user's request.
+
+async function getLiveReactions(ball, userPrediction, predictorPrediction) {
+  const modelToUse = REACTION_MODELS[modelIndex];
+  modelIndex = (modelIndex + 1) % REACTION_MODELS.length;
+  console.log(`[LIVE API] Generating reactions using model: ${modelToUse} (Requested: ${modelIndex === 1 ? 'Gemma 4 26B' : modelIndex === 2 ? 'Gemma 4 31B' : 'Gemini 3.1 Flash Lite'})`);
+  
+  const outcome = ball ? ball.outcome : 'Dot';
+  const runs = ball ? ball.runs : 0;
+  
+  const userCorrect = userPrediction && userPrediction.toLowerCase() === outcome.toLowerCase();
+  const predictorCorrect = predictorPrediction && predictorPrediction.toLowerCase().includes(outcome.toLowerCase());
+
+  const basePrompt = `Ball Outcome: ${outcome} (${runs} runs). User predicted: ${userPrediction} (User was ${userCorrect ? 'RIGHT' : 'WRONG'}). Predictor AI predicted: ${predictorPrediction} (Predictor was ${predictorCorrect ? 'RIGHT' : 'WRONG'}). Batter: ${ball.batter}, Bowler: ${ball.bowler}. Generate 1 short reaction sentence for this specific ball outcome according to your persona.`;
+
+  try {
+    const [statsNerdRes, roastAgentRes, predictorRes] = await Promise.all([
+      ai.models.generateContent({ model: modelToUse, contents: `${STATS_NERD_PROMPT}\n\n${basePrompt}` }),
+      ai.models.generateContent({ model: modelToUse, contents: `${ROAST_AGENT_PROMPT}\n\n${basePrompt}` }),
+      ai.models.generateContent({ model: modelToUse, contents: `${PREDICTOR_PROMPT}\n\n${basePrompt}` })
+    ]);
+    return {
+      statsNerd: statsNerdRes.text(),
+      roastAgent: roastAgentRes.text(),
+      predictor: predictorRes.text()
+    };
+  } catch (e) {
+    console.error(`Live Reaction API failed with model ${modelToUse}:`, e.message);
+    console.log("Falling back to next available model or mock.");
+    return getMockReactions(ball, userPrediction, predictorPrediction);
+  }
+}
+
+module.exports = {
+  getMockPrediction,
+  getMockReactions,
+  getLiveReactions,
+  getPanelAnswers,
+  getProactiveIntervention,
+  getTTS
+};

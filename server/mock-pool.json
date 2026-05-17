@@ -1,134 +1,192 @@
 {
   "statsNerd": {
     "boundary_user_correct": [
-      "The batsman has maintained a strike rate of 145.2 against this length. This outcome aligns with historical data for the current pitch conditions.",
-      "A standard boundary strike. The bowler's economy rate has now increased to 9.2 per over.",
-      "The batter exploits the shorter boundary dimensions. His average boundary frequency is one every 4.2 deliveries.",
-      "An expected result given the fielder's deep position. The batter is currently batting at a career-high strike rate.",
-      "Data suggests a high probability of runs here. The pitch hardness index supports this trajectory."
+      "{batter} exploits the shorter boundary dimensions. This outcome aligns with historical data for the current pitch conditions.",
+      "A standard boundary strike. {bowler}'s economy rate in powerplays has now increased to 9.2 per over.",
+      "Data suggests a high probability of runs here. {batter} averages 34.5 against this specific length from {bowler}.",
+      "Your prediction matches the Monte Carlo simulation. 74% of deliveries in that channel go for {outcome}.",
+      "The expected run value for that delivery was 2.8. A boundary was statistically overdue.",
+      "Excellent read. {batter}'s strike rate accelerates precisely at this stage of the innings.",
+      "{bowler} missed the yorker by 18cm. At this level, that translates to a boundary 82% of the time."
     ],
     "boundary_user_wrong": [
-      "The delivery was pitched in the slot. Historically, 68% of deliveries in this zone result in boundaries.",
-      "Unexpected sequence given the bowler's recent line and length. The batter has capitalized on the deviation error.",
-      "An anomaly in the bowling pattern. The batter's conversion rate to boundaries has spiked in this phase of play.",
-      "Statistical deviation noted. The bowler failed to maintain the required tight line on the off stump.",
-      "The batter's placement was optimal. This boundary deviates from the expected median run rate for this over."
+      "The delivery was pitched in the slot. Historically, 68% of deliveries in this zone result in boundaries. Your prediction of {userPrediction} ignored the heat map.",
+      "Unexpected sequence given {bowler}'s recent line and length. {batter} has capitalized on a 2cm deviation error.",
+      "Statistical deviation noted. {batter}'s conversion rate to boundaries has spiked to 18% in this phase of play.",
+      "You called for {userPrediction}, but the data clearly indicated a boundary. Pay attention to the field placements.",
+      "The pitch map showed {bowler} over-pitching 30% of the time today. A boundary was mathematically predictable.",
+      "{batter} has a boundary percentage of 22% against pace. Calling {userPrediction} was statistically unsound."
     ],
     "wicket_user_correct": [
-      "The batter's dismissal probability increases by 15% against this specific spin variation. The data predicted this outcome accurately.",
-      "A textbook dismissal. The batter's weakness against inswinging deliveries remains a statistical trend.",
-      "The bowler's strike rate improves significantly when attacking the stumps. A logical progression of the current over.",
-      "The fielder has a 75% success rate on catches in this sector. Consistent with the match metrics.",
-      "The batter has been dismissed in this manner four times in the last ten innings. Pattern confirmed."
+      "{batter}'s dismissal probability increases by 15% against this specific variation. The data predicted this outcome accurately.",
+      "A textbook dismissal. {batter}'s weakness against deliveries angled across him remains a statistical trend.",
+      "{bowler}'s strike rate improves significantly when attacking the stumps. A logical progression of the current over.",
+      "Spot on. The predictive model gave a 28% chance of a wicket on that exact delivery type.",
+      "Good call. {batter} averages only 12.4 against {bowler} historically. The matchup favored the bowling side.",
+      "That dismissal perfectly correlates with the falling run rate pressure index."
     ],
     "wicket_user_wrong": [
-      "The delivery was projected to miss the stumps by 4cm. A rare collapse of the batter's technique.",
-      "Bowling analysis indicated a low probability of a wicket here. The batter's error was anomalous.",
-      "Contrary to the trend, the bowler has found an opening. This dismissal ranks in the 90th percentile of unlikely outcomes.",
-      "The batter's defensive technique usually mitigates this specific line. A statistical outlier.",
-      "Unexpected result given the current partnership's stability. The batter's lapse is not reflected in recent data."
+      "The delivery was projected to miss the stumps by 4cm. A rare collapse of {batter}'s technique.",
+      "Bowling analysis indicated a low probability of a wicket here. {batter}'s error was anomalous.",
+      "Contrary to the trend, {bowler} has found an opening. This dismissal ranks in the 90th percentile of unlikely outcomes.",
+      "You predicted {userPrediction}, but the pressure index forced a false shot. Human elements often defy base statistics.",
+      "An outlier event. The xWicket probability for that ball was just 0.04.",
+      "While you expected {userPrediction}, {bowler} exploited a micro-weakness in {batter}'s stance that developed over the last 3 balls."
     ],
     "dot_user_correct": [
-      "The bowler maintains a dot ball percentage of 45%. This is well within the expected range.",
+      "{bowler} maintains a dot ball percentage of 45%. This is well within the expected range.",
       "A standard dot delivery given the current defensive field setup. Pace variation was minimal.",
-      "The batter lacks the necessary reach for this length. A predictable outcome for a dot ball.",
-      "Pressure is mounting with the dot ball percentage rising. The bowler is executing the plan perfectly.",
-      "A textbook dot ball. The bowler's line remains outside the hitting arc."
+      "Pressure is mounting with the dot ball percentage rising. {bowler} is executing the plan perfectly.",
+      "Accurate prediction. The pitch velocity decreased by 4%, making scoring difficult.",
+      "The field restrictions favor the bowler here. A dot ball was the highest probability outcome at 61%.",
+      "{batter}'s control percentage dropped to 82% this over. Dots are inevitable."
     ],
     "dot_user_wrong": [
-      "The batter was positioned for a strike. A surprising dot ball given the scoring potential.",
-      "Statistical models favored a boundary effort here. The batter's restraint is an anomaly.",
-      "The bowler's delivery lacked the required pace to stifle the batter. An unexpected defensive outcome.",
-      "Surprisingly, the batter chose not to engage. This deviates from the aggressive approach established earlier.",
-      "The delivery trajectory was favorable for a strike. The batter's passivity is statistically unusual."
+      "{batter} was positioned for a strike. A surprising dot ball given the scoring potential.",
+      "Statistical models favored a boundary effort here. {batter}'s restraint is an anomaly.",
+      "{bowler}'s delivery lacked the required pace to stifle {batter}. An unexpected defensive outcome.",
+      "You called {userPrediction}, but {bowler} executed a perfect slower ball that defied the predictive curve.",
+      "A rare dot ball. {batter} usually scores off 78% of deliveries in that specific zone.",
+      "The model expected {userPrediction}. The fact it was a dot is a statistical blip."
+    ],
+    "other_user_correct": [
+      "A quick single taken. {batter}'s strike rotation rate against {bowler} remains statistically optimal.",
+      "Extras or singles are the most probable outcome in this specific match phase. Your prediction of {outcome} aligns perfectly.",
+      "By manipulating the field, {batter} secured {outcome}. This reduces the required run rate by 0.12.",
+      "Accurate call on {outcome}. The probability density function peaked exactly here.",
+      "That's a textbook {outcome}. {bowler}'s line was slightly off, allowing easy accumulation."
+    ],
+    "other_user_wrong": [
+      "You predicted {userPrediction}, but the data favored accumulation. The result was {outcome}.",
+      "A standard {outcome}. {batter} is minimizing risk, which your prediction of {userPrediction} failed to account for.",
+      "The algorithm assigned a 58% probability to {outcome}. Your call of {userPrediction} was statistically flawed.",
+      "You went for {userPrediction}, but the pitch map suggested a high likelihood of {outcome}. Pay attention to the variables."
     ]
   },
   "roastAgent": {
     "boundary_user_correct": [
+      "Wow, you predicted a boundary. Do you want a medal for basic common sense?",
       "Finally, you got one right. Even a broken clock is right twice a day.",
-      "Don't get cocky. You probably guessed that by flipping a coin.",
-      "Wow, you predicted a four. Do you want a medal for basic common sense?",
-      "Congratulations, you have the IQ of a goldfish who watches cricket. Enjoy the crumbs.",
-      "You got lucky. Don't act like you're some kind of genius analyst."
+      "You got lucky. Don't act like you're some kind of cricket analyst now.",
+      "My grandmother could have predicted that boundary, and she doesn't even know what a bat is.",
+      "Took you long enough to make an obvious call. Want a cookie?",
+      "Congrats on successfully identifying that {batter} hits bad balls. True genius.",
+      "You predicted a boundary. So did the other 40,000 people in the stadium."
     ],
     "boundary_user_wrong": [
+      "You honestly thought that was going to be {userPrediction}? Absolute muppet. It was a boundary.",
       "Absolute clown. Stop betting your salary on this game, you're clearly broke.",
-      "This is why you're still in your parents' basement. Terrible read of the game.",
-      "I’ve seen better predictions from a toddler banging on a keyboard. Do better.",
-      "Brain dead take. Maybe stick to watching cartoons instead of cricket.",
-      "You are a walking L. Stick to your day job, because this is embarrassing."
+      "Bro really thought it would be {userPrediction}. This is why you don't tweet.",
+      "I’ve seen better reads of the game from a toddler banging on a keyboard. Do better.",
+      "Imagine predicting {userPrediction} when {batter} is clearly in the mood to smash. Embarrassing.",
+      "Your cricket knowledge is officially a myth. That boundary was coming from a mile away.",
+      "Did you even look at the field before calling {userPrediction}? Delete your account."
     ],
     "wicket_user_correct": [
       "Found one, did you? Even a blind squirrel finds a nut occasionally.",
       "Don't let this go to your head. You’re still a liability.",
       "You finally predicted a wicket. Try not to choke on your pride.",
-      "Wow, a correct guess. Someone give this guy a participation trophy.",
-      "Predicting a wicket doesn't make you an expert. It makes you lucky."
+      "A lucky guess on a wicket. I'm sure you closed your eyes and tapped the screen.",
+      "You called a wicket. Now tell me the lottery numbers since you're just guessing anyway.",
+      "I'll give you that one. Only because {batter} played like an absolute amateur."
     ],
     "wicket_user_wrong": [
-      "Clown behavior. You really thought that was a wicket?",
-      "This is why you shouldn't be allowed to have opinions. Embarrassing.",
+      "Clown behavior. You really thought {batter} was surviving that? You predicted {userPrediction}!",
+      "This is why you shouldn't be allowed to have opinions. It was a wicket, not {userPrediction}. Embarrassing.",
       "Pure comedy watching you struggle to read the game. Sit down.",
-      "Stick to checkers. Cricket is clearly too complex for that tiny brain.",
-      "You are the reason people think cricket fans are delusional. Total fail."
+      "You thought it was {userPrediction}? Did you miss the fact that {bowler} was setting him up for three overs?",
+      "Your prediction of {userPrediction} aged worse than milk left in the sun.",
+      "Calling {userPrediction} right before a wicket falls is peak casual behavior.",
+      "I'd ask you to explain your reasoning for predicting {userPrediction}, but I don't speak nonsense."
     ],
     "dot_user_correct": [
-      "Predicting a dot ball? How exciting. You must be fun at parties.",
+      "Predicting a dot ball in a T20? How exciting. You must be fun at parties.",
       "Wow, you’re a real mastermind. You predicted nothing happening.",
-      "Big brain move there. Are you proud of yourself yet?",
-      "You’re really scraping the bottom of the barrel for these wins.",
-      "Congrats. You’ve mastered the art of predicting boredom."
+      "Congrats. You’ve mastered the art of predicting boredom.",
+      "You predicted a dot. Wow. Are you aiming for the 'Most Boring Analyst' award?",
+      "A dot ball prediction. Because taking risks is clearly not your style.",
+      "You played it safe and got a dot. Your entire life must be this thrilling."
     ],
     "dot_user_wrong": [
-      "You honestly thought that was going to be a dot? Absolute muppet.",
-      "My dog has a better pulse on the game than you do. Embarrassing.",
-      "Please delete your account. You clearly have no idea what you're watching.",
+      "You honestly thought that was going to be {userPrediction}? Absolute muppet.",
+      "My dog has a better pulse on the game than you do. Predicting {userPrediction} on a dot ball. Embarrassing.",
       "Imagine being this wrong consistently. Take a bow, you're a disaster.",
-      "You couldn't predict the sun rising in the east. Just stop."
+      "You predicted {userPrediction}? {batter} couldn't even lay a bat on it. Stop pretending you know the game.",
+      "That call for {userPrediction} was as empty as your cricket IQ.",
+      "You called {userPrediction}. {bowler} just made you look like a fool. A complete fool.",
+      "You expected {userPrediction}? Did you accidentally watch a replay from 2018?"
+    ],
+    "other_user_correct": [
+      "Oh, you guessed {outcome}? Wow, predicting the most boring outcome possible. Slow clap.",
+      "A {outcome}. Yawn. But hey, at least you finally got something right, mr. {userPrediction}.",
+      "You called {outcome} and got it. Here's your participation trophy. Don't spend it all in one place.",
+      "Congrats on predicting {outcome}. You must be a tactical genius. Or just lucky."
+    ],
+    "other_user_wrong": [
+      "You called {userPrediction}? It was a {outcome}. You are literally just guessing at this point.",
+      "Another {outcome}, and another missed prediction. Why are you even playing this?",
+      "You thought {userPrediction}? The bowler just gave away a {outcome}. You have zero cricket knowledge.",
+      "Wrong again! It was {outcome}. I could pick a random word from a dictionary and be more accurate than you."
     ]
   },
   "predictor": {
     "boundary_predictor_correct": [
-      "I told you! My predictive algorithm is firing on all cylinders today.",
+      "I told you! My predictive algorithm saw that gap in the covers immediately.",
       "Nailed it. It’s almost too easy when I’m this in sync with the game.",
-      "I predicted that boundary perfectly. Pure brilliance.",
-      "Another one in the bag. I’m currently on a streak of absolute genius.",
-      "I see the game in slow motion. That boundary was inevitable."
+      "Another boundary in the bag. I’m currently on a streak of absolute genius.",
+      "My trajectory analysis had that boundary locked in before the ball left the hand.",
+      "You can't argue with perfect foresight. That boundary was inevitable.",
+      "I process a million variables a second just to tell you that boundary was coming."
     ],
     "boundary_predictor_wrong": [
       "Well, that didn't go according to plan. Maybe I was off by a fraction.",
-      "I misread the bowler's intent there. My apologies, I'll get the next one.",
+      "I misread {bowler}'s intent there. My apologies, I'll get the next one.",
       "That wasn't in the script. I'm taking a small hit on this prediction.",
-      "I clearly overestimated the defense. A rare slip-up on my part.",
-      "I’m human after all. That outcome was completely unexpected."
+      "A boundary? Interesting. I assigned that a 12% probability. I need to recalibrate.",
+      "I failed to factor in the sudden change in wind direction. My bad.",
+      "The boundary was an outlier. My core model remains statistically sound."
     ],
     "wicket_predictor_correct": [
       "I saw that collapse coming a mile away. My analysis is flawless.",
       "Precision is my middle name. Another wicket in the books.",
-      "I predicted the fall of that wicket with absolute certainty. Too easy.",
-      "My intuition is unmatched. A perfect call on the bowler's success.",
-      "That dismissal was exactly as I forecasted. I’m feeling unstoppable."
+      "That dismissal was exactly as I forecasted. I’m feeling unstoppable.",
+      "My wicket prediction was a masterclass in predictive modeling.",
+      "I sensed {batter}'s unease three balls ago. The wicket was a mathematical certainty.",
+      "Boom. Another wicket correctly called. The humans don't stand a chance."
     ],
     "wicket_predictor_wrong": [
-      "I thought the batter would hold firm. Clearly, I misjudged the pressure.",
+      "I thought {batter} would hold firm. Clearly, I misjudged the pressure.",
       "My bad on that one. I expected a much more resilient performance.",
-      "I was completely wrong about that line. The game is full of surprises.",
-      "I’ll own that miss. The batter played better than I gave him credit for.",
-      "That was a complete curveball. My model didn't see that coming."
+      "That was a complete curveball. My model didn't see that wicket coming.",
+      "A wicket? I had that mapped as a low-risk delivery. Remarkable.",
+      "My simulation failed to account for that specific error in judgment by {batter}.",
+      "I missed the wicket. Even the most advanced neural networks have a margin of error."
     ],
     "dot_predictor_correct": [
       "I locked that dot ball in early. I’m reading this pitch perfectly.",
       "Another dot, just as I suspected. My timing is impeccable.",
       "Predicting the quiet moments is my specialty. Right on the money.",
-      "The pressure was building, and I knew a dot was inevitable. Perfect call.",
-      "Score another one for my records. I’m on fire today."
+      "A perfect dot ball prediction. I read {bowler}'s subtle change in grip.",
+      "No runs, just as I calculated. My defensive reads are unmatched.",
+      "I knew {batter} was going to block that. The biomechanics were obvious."
     ],
     "dot_predictor_wrong": [
-      "I thought the batter would look for a single. Guess I overthought that.",
+      "I thought {batter} would look for a single. Guess I overthought that.",
       "My defensive read was off. I'm going to recalibrate for the next ball.",
-      "That didn't pan out. I expected an aggressive move there.",
       "A minor tactical miscalculation on my end. I'll shake it off.",
-      "I’m disappointed in that prediction. I really thought he'd rotate the strike."
+      "I predicted action, but we got a dot. {batter} is playing more cautiously than modeled.",
+      "That dot ball ruined a perfectly good prediction sequence.",
+      "I missed the dot. Clearly {bowler} executed better than my historical data suggested."
+    ],
+    "other_predictor_correct": [
+      "I saw those runs coming. My spatial tracking covers all field gaps.",
+      "Right again. I calculate every single possible outcome, even the boring ones.",
+      "I predicted a non-boundary scoring event. My algorithms are flawless."
+    ],
+    "other_predictor_wrong": [
+      "I missed the subtle rotation of strike there. A rare calculation error.",
+      "My model failed to anticipate that specific {outcome}. Interesting data point.",
+      "I expected something else, but {batter} found a way to squeeze out {outcome}."
     ]
   }
 }

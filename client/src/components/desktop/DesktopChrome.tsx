@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { Monogram, AgentAvatar, AGENT_META, Ic, type AgentId, TEAM_COLORS } from '../Shared';
 
 // Map full team name → 3-letter monogram code for the Monogram component.

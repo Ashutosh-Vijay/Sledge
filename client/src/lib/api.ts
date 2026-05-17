@@ -2,15 +2,14 @@ import type { Ball, MatchContext, AgentResponse } from '../types';
 
 const API_BASE = '/api';
 
-export async function fetchNextPrediction(matchContext: MatchContext): Promise<string> {
+export async function fetchNextPrediction(matchContext: MatchContext, nextBall: Ball): Promise<{ prediction: string, proactive?: string }> {
   const res = await fetch(`${API_BASE}/predict-next`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ matchContext })
+    body: JSON.stringify({ matchContext, nextBall })
   });
   if (!res.ok) throw new Error('API Error');
-  const data = await res.json();
-  return data.prediction;
+  return res.json();
 }
 
 export async function submitReaction(

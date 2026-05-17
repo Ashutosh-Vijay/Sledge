@@ -3,7 +3,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
-const { getMockPrediction, getMockReactions, getPanelAnswers } = require('./agents');
+const { getMockPrediction, getMockReactions, getLiveReactions, getPanelAnswers, getProactiveIntervention, getTTS } = require('./agents');
 
 const app = express();
 app.use(cors());
@@ -14,14 +14,22 @@ app.use(express.static(path.join(__dirname, '../client/dist')));
 
 // Pre-ball: predictor calls its shot (mocked — instant, no API cost)
 app.post('/api/predict-next', (req, res) => {
-  res.json({ prediction: getMockPrediction() });
+  const { matchContext, nextBall } = req.body || {};
+  const proactive = nextBall ? getProactiveIntervention(nextBall) : null;
+  res.json({ prediction: getMockPrediction(), proactive });
 });
 
-// Post-ball: all 3 agents react (mocked — instant, no API cost)
-app.post('/api/react', (req, res) => {
+// Post-ball: all 3 agents react (live API with fallback)
+app.post('/api/react', async (req, res) => {
   const { ball, userPrediction, predictorPrediction } = req.body || {};
   if (!ball) return res.status(400).json({ error: 'ball required' });
-  res.json(getMockReactions(ball, userPrediction, predictorPrediction));
+  try {
+    const reactions = await getLiveReactions(ball, userPrediction, predictorPrediction);
+    res.json(reactions);
+  } catch (e) {
+    console.error("Live reactions failed, falling back to mock:", e);
+    res.json(getMockReactions(ball, userPrediction, predictorPrediction));
+  }
 });
 
 // Ask the Panel — LIVE Gemini (this is the interactive demo moment)
@@ -39,6 +47,17 @@ app.post('/api/ask', async (req, res) => {
     res.json(answers);
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/tts', async (req, res) => {
+  const { text } = req.body || {};
+  if (!text) return res.status(400).json({ error: 'Text required' });
+  try {
+    const audioBase64 = await getTTS(text);
+    res.json({ audio: audioBase64 });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

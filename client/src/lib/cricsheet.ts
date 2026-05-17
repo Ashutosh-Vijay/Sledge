@@ -1,5 +1,6 @@
 import type { Ball, ExtraKind } from '../types';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function parseCricsheet(data: any): Ball[] {
   const balls: Ball[] = [];
 

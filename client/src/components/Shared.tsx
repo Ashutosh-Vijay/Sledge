@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components, @typescript-eslint/no-explicit-any */
 import React from 'react';
 
 // ── Team Colors ──────────────────────────────────────────────
