@@ -47,23 +47,28 @@ function tone(freq: number, dur: number, type: OscillatorType = 'sine', vol = 0.
   } catch { /* audio blocked */ }
 }
 const playBoundary = () => { 
-  tone(440, 0.1, 'square', 0.1); 
-  setTimeout(() => tone(554, 0.1, 'square', 0.1), 100); 
-  setTimeout(() => tone(659, 0.2, 'square', 0.15), 200); 
+  tone(440, 0.15, 'square', 0.1); 
+  setTimeout(() => tone(554, 0.15, 'square', 0.1), 100); 
+  setTimeout(() => tone(659, 0.3, 'square', 0.15), 200); 
+  setTimeout(() => tone(880, 0.4, 'triangle', 0.2), 300);
 };
 const playWicket = () => { 
-  tone(220, 0.4, 'sawtooth', 0.25); 
-  tone(233, 0.4, 'sawtooth', 0.25); 
-  setTimeout(() => { tone(110, 0.5, 'sawtooth', 0.3); tone(116, 0.5, 'sawtooth', 0.3); }, 200);
+  tone(600, 0.2, 'sawtooth', 0.3); 
+  tone(650, 0.2, 'square', 0.2); 
+  setTimeout(() => { tone(400, 0.4, 'sawtooth', 0.4); tone(430, 0.4, 'square', 0.2); }, 150);
 };
 const playCorrect = () => { 
-  const notes = [523.25, 659.25, 783.99, 1046.50];
-  notes.forEach((freq, i) => setTimeout(() => tone(freq, 0.15, 'sine', 0.2), i * 80));
+  const notes = [1046.50, 1318.51, 1567.98, 2093.00, 1567.98, 2093.00, 2637.02];
+  notes.forEach((freq, i) => {
+    setTimeout(() => tone(freq, 0.1, 'sine', 0.15), i * 60);
+    setTimeout(() => tone(freq * 1.5, 0.1, 'triangle', 0.05), i * 60);
+  });
 };
 const playWrong = () => { 
-  tone(200, 0.2, 'sawtooth', 0.2);
-  setTimeout(() => tone(150, 0.3, 'sawtooth', 0.2), 150);
-  setTimeout(() => tone(100, 0.4, 'sawtooth', 0.3), 300);
+  tone(300, 0.3, 'sawtooth', 0.2);
+  tone(315, 0.3, 'triangle', 0.2);
+  setTimeout(() => { tone(200, 0.4, 'sawtooth', 0.25); tone(210, 0.4, 'square', 0.1); }, 200);
+  setTimeout(() => { tone(100, 0.6, 'sawtooth', 0.3); tone(105, 0.6, 'square', 0.15); }, 450);
 };
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -421,7 +426,7 @@ export default function App() {
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
-      playNextBall(userPrediction);
+      setTimeout(() => playNextBall(userPrediction), 0);
     }
   }, [userPrediction, isAIFetching, isBallPlaying, playNextBall]);
 

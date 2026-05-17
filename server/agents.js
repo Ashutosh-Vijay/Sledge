@@ -6,7 +6,9 @@ if (!process.env.GEMINI_API_KEY) {
   console.warn('[agents] GEMINI_API_KEY not set — Ask the Panel will fail.');
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY
+});
 const MODEL = 'gemini-3.1-flash-lite';
 
 // Loaded once at startup — used for per-ball autoplay reactions
@@ -169,26 +171,29 @@ function getProactiveIntervention(ball) {
 
 async function getTTS(text) {
   const modelsToTry = [
-    'gemini-2.5-flash-preview-tts',
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite-preview'
+    'gemini-3.1-flash-tts-preview',
+    'gemini-2.5-pro-preview-tts',
+    'gemini-2.5-flash-preview-tts'
   ];
   
   for (const model of modelsToTry) {
     try {
       const res = await ai.models.generateContent({
         model: model,
-        contents: `Repeat the following text exactly as audio: ${text}`,
+        contents: `You are a text to speech model. Repeat the exact text provided to you as audio with a distinct Indian accent. Do not generate text responses. Text to repeat: ${text}`,
         config: {
           responseModalities: ['AUDIO'],
-          systemInstruction: "You are a text to speech model. Repeat the exact text provided to you as audio with a distinct Indian accent. Do not generate text responses."
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } } }
         }
       });
       const parts = res.candidates?.[0]?.content?.parts || [];
+      console.log(`[TTS Debug] Parts returned for ${model}:`, JSON.stringify(parts, null, 2));
       const audioPart = parts.find(p => p.inlineData);
       if (audioPart) {
         return audioPart.inlineData.data;
       }
+      
+      console.log(`[TTS Debug] No inlineData found in parts for ${model}`);
     } catch (e) {
       console.error(`TTS error with ${model}:`, e.message);
     }
@@ -197,7 +202,7 @@ async function getTTS(text) {
 }
 
 let modelIndex = 0;
-const REACTION_MODELS = ['gemma-2-27b-it', 'gemini-2.5-flash-lite-preview', 'gemini-2.5-flash']; // Mapped to the closest real available API models from user's request.
+const REACTION_MODELS = ['gemma-4-26b-a4b-it', 'gemini-3.1-flash-lite', 'gemini-3.1-flash-lite-preview'];
 
 async function getLiveReactions(ball, userPrediction, predictorPrediction) {
   const modelToUse = REACTION_MODELS[modelIndex];
@@ -219,9 +224,9 @@ async function getLiveReactions(ball, userPrediction, predictorPrediction) {
       ai.models.generateContent({ model: modelToUse, contents: `${PREDICTOR_PROMPT}\n\n${basePrompt}` })
     ]);
     return {
-      statsNerd: statsNerdRes.text(),
-      roastAgent: roastAgentRes.text(),
-      predictor: predictorRes.text()
+      statsNerd: statsNerdRes.text,
+      roastAgent: roastAgentRes.text,
+      predictor: predictorRes.text
     };
   } catch (e) {
     console.error(`Live Reaction API failed with model ${modelToUse}:`, e.message);
