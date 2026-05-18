@@ -434,6 +434,7 @@ export default function App() {
 
   const playNextBall = useCallback(async (forcedPrediction?: string) => {
     if (currentBallIndex >= balls.length || isAIFetching) return;
+    stopEventClip();
     stopCrowd();
     setIsBallPlaying(true);
     setIsAIFetching(true);
@@ -641,6 +642,7 @@ export default function App() {
 
     if (!predictorPrediction && !isBallPlaying) {
       setTimeout(() => setIsAIFetching(true), 0);
+      stopEventClip();
       const ball = balls[currentBallIndex];
       const matchContext: MatchContext = {
         over: ball.over,
