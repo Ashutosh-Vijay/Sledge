@@ -100,6 +100,7 @@ function initBgAudio() {
 function startBgAudio() { initBgAudio(); if (_bgAudio?.paused) _bgAudio.play().catch(() => {}); }
 function pauseBgAudio() { if (_bgAudio && !_bgAudio.paused) _bgAudio.pause(); }
 function resumeBgAudio() { if (_bgAudio?.paused) _bgAudio.play().catch(() => {}); }
+// @ts-ignore
 function stopBgAudio() { if (_bgAudio) { _bgAudio.pause(); _bgAudio.currentTime = 0; } }
 
 // Crowd — plays during the 3s prediction delay
@@ -157,7 +158,9 @@ let _audioSource: AudioBufferSourceNode | null = null;
 let _pendingAudio: { buffer: AudioBuffer; agentId: string } | null = null;
 let _playWhenReady = false;
 let _fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+// @ts-ignore
 let _fallbackAgentId = '';
+// @ts-ignore
 let _fallbackMsg = '';
 
 function cancelCurrentTTS() {
@@ -189,6 +192,7 @@ function playAudioBuffer(buffered: { buffer: AudioBuffer; agentId: string }) {
   source.start(0);
 }
 
+// @ts-ignore
 function fallbackSpeak(agentId: string, message: string) {
   if (typeof window === 'undefined') return;
   window.speechSynthesis?.cancel();
