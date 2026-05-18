@@ -19,17 +19,11 @@ app.post('/api/predict-next', (req, res) => {
   res.json({ prediction: getMockPrediction(), proactive });
 });
 
-// Post-ball: all 3 agents react (live API with fallback)
-app.post('/api/react', async (req, res) => {
+// Post-ball: all 3 agents react (mock for speed — live Gemini reserved for Ask the Panel)
+app.post('/api/react', (req, res) => {
   const { ball, userPrediction, predictorPrediction } = req.body || {};
   if (!ball) return res.status(400).json({ error: 'ball required' });
-  try {
-    const reactions = await getLiveReactions(ball, userPrediction, predictorPrediction);
-    res.json(reactions);
-  } catch (e) {
-    console.error("Live reactions failed, falling back to mock:", e);
-    res.json(getMockReactions(ball, userPrediction, predictorPrediction));
-  }
+  res.json(getMockReactions(ball, userPrediction, predictorPrediction));
 });
 
 // Ask the Panel — LIVE Gemini (this is the interactive demo moment)
@@ -52,10 +46,10 @@ app.post('/api/ask', async (req, res) => {
 });
 
 app.post('/api/tts', async (req, res) => {
-  const { text } = req.body || {};
+  const { text, agentId } = req.body || {};
   if (!text) return res.status(400).json({ error: 'Text required' });
   try {
-    const audioBase64 = await getTTS(text);
+    const audioBase64 = await getTTS(text, agentId);
     res.json({ audio: audioBase64 });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -61,9 +61,18 @@ function getMockPrediction() {
   return 'Dot\n65% confidence.';
 }
 
-function getMockReactions(ball, userPrediction, predictorPrediction) {
-  const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
+// Per-key last-used index — avoids back-to-back repeats
+const _lastUsed = {};
+function pickNoRepeat(arr, key) {
+  if (!arr || arr.length === 0) return '';
+  if (arr.length === 1) return arr[0];
+  let idx;
+  do { idx = Math.floor(Math.random() * arr.length); } while (idx === _lastUsed[key]);
+  _lastUsed[key] = idx;
+  return arr[idx];
+}
 
+function getMockReactions(ball, userPrediction, predictorPrediction) {
   const outcome = ball.outcome; // 'Dot' | 'Boundary' | 'Wicket' | 'Other'
   const poolKey = outcome.toLowerCase();
 
@@ -80,10 +89,8 @@ function getMockReactions(ball, userPrediction, predictorPrediction) {
     if (!str) return str;
     let friendlyOutcome = (outcome || 'nothing').toLowerCase();
     if (friendlyOutcome === 'other') friendlyOutcome = 'single/extra';
-
     let friendlyPrediction = (userPrediction || 'nothing').toLowerCase();
     if (friendlyPrediction === 'other') friendlyPrediction = 'single/extra';
-
     return str
       .replace(/{batter}/g, ball?.batter || 'The batter')
       .replace(/{bowler}/g, ball?.bowler || 'the bowler')
@@ -92,9 +99,9 @@ function getMockReactions(ball, userPrediction, predictorPrediction) {
   };
 
   return {
-    statsNerd:  inject(rand(mockPool.statsNerd[statsKey]  || mockPool.statsNerd.dot_user_wrong)),
-    roastAgent: inject(rand(mockPool.roastAgent[roastKey] || mockPool.roastAgent.dot_user_wrong)),
-    predictor:  inject(rand(mockPool.predictor[predKey]   || mockPool.predictor.dot_predictor_wrong)),
+    statsNerd:  inject(pickNoRepeat(mockPool.statsNerd[statsKey]  || mockPool.statsNerd.dot_user_wrong,  'stats_' + statsKey)),
+    roastAgent: inject(pickNoRepeat(mockPool.roastAgent[roastKey] || mockPool.roastAgent.dot_user_wrong, 'roast_' + roastKey)),
+    predictor:  inject(pickNoRepeat(mockPool.predictor[predKey]   || mockPool.predictor.dot_predictor_wrong, 'pred_' + predKey)),
   };
 }
 
@@ -161,41 +168,141 @@ async function getPanelAnswers(question, contextString) {
   };
 }
 
+const PROACTIVE_MATCHUPS = {
+  'Rohit Sharma_Harshit Rana': {
+    tool: `get_batsman_vs_bowler('Rohit Sharma', 'Harshit Rana')`,
+    ms: 31,
+    line: "Rohit Sharma dismissed by Harshit Rana twice in 7 T20 deliveries. The carry and bounce is Rohit's precise weakness at this height. This is a high-risk delivery."
+  },
+  'Ishan Kishan_Sunil Narine': {
+    tool: `get_batsman_vs_bowler('Ishan Kishan', 'Sunil Narine')`,
+    ms: 44,
+    line: "Narine has dismissed Ishan Kishan 3 times in 9 T20 deliveries — every time through the gate. 0 foot movement from Ishan this over. Watch the off-stump."
+  },
+  'Suryakumar Yadav_Varun Chakaravarthy': {
+    tool: `get_batsman_vs_bowler('Suryakumar Yadav', 'Varun Chakaravarthy')`,
+    ms: 38,
+    line: "SKY averages 11 in 19 balls against Chakaravarthy. The mystery spinner has drawn 2 stumping chances off him this season. Keeper is standing up."
+  },
+  'Tilak Varma_Mitchell Starc': {
+    tool: `get_batsman_vs_bowler('Tilak Varma', 'Mitchell Starc')`,
+    ms: 29,
+    line: "Starc's inswinger has been hitting Tilak Varma's front pad all over. 3 dots in a row, pressure index at 74%. The LBW ball pattern is live."
+  },
+};
+
+const BOUNDARY_ALERTS = {
+  'Ishan Kishan_Mitchell Starc': {
+    tool: `get_recent_form('Ishan Kishan')`,
+    ms: 22,
+    line: "Ishan Kishan is in form — 3 boundaries off Starc in the powerplay already. Starc's pace suits his hitting arc. Something big is coming."
+  },
+  'Tilak Varma_Andre Russell': {
+    tool: `get_recent_form('Tilak Varma')`,
+    ms: 19,
+    line: "Tilak Varma has a strike rate of 189 against medium-pace in T20s. Russell is bowling at 136kph into the arc. High boundary probability."
+  },
+  'Tim David_Mitchell Starc': {
+    tool: `get_player_career_stats('Tim David')`,
+    ms: 26,
+    line: "Tim David in the death overs: strike rate 247, boundary every 3.1 balls. Starc is under pressure. Expect fireworks."
+  },
+};
+
 function getProactiveIntervention(ball) {
-  // Only intervene for wickets to create that "unlock moment"
+  const key = `${ball.batter}_${ball.bowler}`;
+
   if (ball.outcome === 'Wicket') {
-    return `Stats Nerd → get_batsman_vs_bowler('${ball.batter}', '${ball.bowler}') → 47ms\n\n${ball.batter} averages 18 in deaths against pace — this is a WICKET BALL.`;
+    const m = PROACTIVE_MATCHUPS[key];
+    if (m) return `Stats Nerd → ${m.tool} → ${m.ms}ms\n\n${m.line}`;
+    return `Stats Nerd → get_batsman_vs_bowler('${ball.batter}', '${ball.bowler}') → 47ms\n\n${ball.batter} averages 18 against this line from ${ball.bowler}. Dismissal probability is elevated.`;
   }
+
+  if (ball.outcome === 'Boundary' && BOUNDARY_ALERTS[key]) {
+    const m = BOUNDARY_ALERTS[key];
+    return `Stats Nerd → ${m.tool} → ${m.ms}ms\n\n${m.line}`;
+  }
+
   return null;
 }
 
-async function getTTS(text) {
+function buildTTSPrompt(text, agentId) {
+  if (agentId === 'statsNerd') return `# AUDIO PROFILE: Stats Guru
+## "The Number Cruncher"
+
+## THE SCENE: IPL Press Box, Wankhede Stadium
+Stats Guru sits surrounded by data screens in a silent press box. Outside, the crowd roars. Inside: numbers, silence, verdicts.
+
+### DIRECTOR'S NOTES
+Style: Cold, precise, zero emotion. Delivers statistics like court rulings.
+Pacing: Measured. Deliberate pauses before numbers.
+Accent: Educated Mumbai English — analytics professional. Not call center, not foreign return.
+
+### TRANSCRIPT
+${text}`;
+
+  if (agentId === 'roastAgent') return `# AUDIO PROFILE: Roaster
+## "The Twitter Troll"
+
+## THE SCENE: Mumbai Apartment Watch Party
+Chaos. Six people screaming at the TV. Someone just predicted wrong. Roaster has the mic and a Twitter audience.
+
+### DIRECTOR'S NOTES
+Style: [sarcastically] Savage Indian cricket Twitter energy. Short sentences. Maximum disrespect. Hinglish tone.
+Pacing: Fast and punchy — can't wait to land the insult.
+Accent: Mumbai street-smart English. Real desi. Not call center, not BBC.
+
+### TRANSCRIPT
+${text}`;
+
+  return `# AUDIO PROFILE: Predictor AI
+## "The Algorithm"
+
+## THE SCENE: Digital Commentary Booth, Wankhede
+Sleek booth, probability graphs on every screen. The AI calls its shots with confidence.
+
+### DIRECTOR'S NOTES
+Style: Confident, slightly smug when right. Self-deprecating when wrong. Technical but punchy.
+Pacing: Brisk. No wasted words.
+Accent: Clear Indian English — Bangalore tech professional.
+
+### TRANSCRIPT
+${text}`;
+}
+
+const AGENT_VOICE = {
+  statsNerd:  'Charon',
+  roastAgent: 'Zephyr',
+  predictor:  'Puck',
+};
+
+async function getTTS(text, agentId = 'roastAgent') {
+  const voice = AGENT_VOICE[agentId] || 'Zephyr';
+  const styledText = buildTTSPrompt(text, agentId);
   const modelsToTry = [
     'gemini-3.1-flash-tts-preview',
-    'gemini-2.5-pro-preview-tts',
-    'gemini-2.5-flash-preview-tts'
+    'gemini-2.5-flash-preview-tts',
   ];
-  
+
   for (const model of modelsToTry) {
     try {
       const res = await ai.models.generateContent({
-        model: model,
-        contents: `You are a text to speech model. Repeat the exact text provided to you as audio with a distinct Indian accent. Do not generate text responses. Text to repeat: ${text}`,
+        model,
+        contents: styledText,
         config: {
           responseModalities: ['AUDIO'],
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } } }
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } }
         }
       });
       const parts = res.candidates?.[0]?.content?.parts || [];
-      console.log(`[TTS Debug] Parts returned for ${model}:`, JSON.stringify(parts, null, 2));
-      const audioPart = parts.find(p => p.inlineData);
+      const audioPart = parts.find(p => p.inlineData?.data);
       if (audioPart) {
+        console.log(`[TTS] ${agentId} → ${model} (${voice}), length: ${audioPart.inlineData.data.length}`);
         return audioPart.inlineData.data;
       }
-      
-      console.log(`[TTS Debug] No inlineData found in parts for ${model}`);
+      console.warn(`[TTS] ${model} returned no audio parts:`, JSON.stringify(parts).slice(0, 200));
     } catch (e) {
-      console.error(`TTS error with ${model}:`, e.message);
+      console.error(`[TTS] ${model} failed:`, e.message);
     }
   }
   return null;

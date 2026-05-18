@@ -64,91 +64,199 @@ const playCorrect = () => {
     setTimeout(() => tone(freq * 1.5, 0.1, 'triangle', 0.05), i * 60);
   });
 };
-const playWrong = () => { 
+const playWrong = () => {
   tone(300, 0.3, 'sawtooth', 0.2);
   tone(315, 0.3, 'triangle', 0.2);
   setTimeout(() => { tone(200, 0.4, 'sawtooth', 0.25); tone(210, 0.4, 'square', 0.1); }, 200);
   setTimeout(() => { tone(100, 0.6, 'sawtooth', 0.3); tone(105, 0.6, 'square', 0.15); }, 450);
 };
+const playStreak3 = () => {
+  [523, 659, 784, 1047, 1319].forEach((f, i) => setTimeout(() => tone(f, 0.18, 'sine', 0.2), i * 75));
+  setTimeout(() => tone(1319, 0.6, 'sine', 0.28), 420);
+};
+const playStreak5 = () => {
+  [262, 330, 392, 523, 659, 784, 1047, 1319, 1568].forEach((f, i) =>
+    setTimeout(() => { tone(f, 0.14, 'sine', 0.22); tone(f * 1.5, 0.14, 'triangle', 0.08); }, i * 52)
+  );
+  setTimeout(() => { tone(1047, 0.9, 'sine', 0.3); tone(1319, 0.9, 'sine', 0.22); tone(1568, 0.9, 'sine', 0.18); }, 530);
+};
+const playNearMiss = () => {
+  tone(880, 0.1, 'sine', 0.12);
+  setTimeout(() => tone(660, 0.15, 'sine', 0.1), 90);
+  setTimeout(() => tone(440, 0.3, 'sawtooth', 0.08), 220);
+};
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
-const speakMessage = async (agentId: string, message: string) => {
+// ── Audio state machine ────────────────────────────────────────────────
+// IPL theme — plays everywhere, pauses during crowd/TTS, resumes after
+let _bgAudio: HTMLAudioElement | null = null;
+function initBgAudio() {
+  if (typeof window === 'undefined' || _bgAudio) return;
+  _bgAudio = new Audio('/audio/bg.wav');
+  _bgAudio.loop = true;
+  _bgAudio.volume = 0.28;
+}
+function startBgAudio() { initBgAudio(); if (_bgAudio?.paused) _bgAudio.play().catch(() => {}); }
+function pauseBgAudio() { if (_bgAudio && !_bgAudio.paused) _bgAudio.pause(); }
+function resumeBgAudio() { if (_bgAudio?.paused) _bgAudio.play().catch(() => {}); }
+function stopBgAudio() { if (_bgAudio) { _bgAudio.pause(); _bgAudio.currentTime = 0; } }
+
+// Crowd — plays during the 3s prediction delay
+let _crowdAudio: HTMLAudioElement | null = null;
+function playCrowd() {
+  if (_crowdAudio) { _crowdAudio.pause(); _crowdAudio.currentTime = 0; }
+  _crowdAudio = new Audio('/audio/crowd.wav');
+  _crowdAudio.volume = 0.75;
+  _crowdAudio.play().catch(() => {});
+}
+function stopCrowd() {
+  if (_crowdAudio) { _crowdAudio.pause(); _crowdAudio.currentTime = 0; _crowdAudio = null; }
+}
+
+// Event clip (Mumbai/Kolkata) — plays on boundary/wicket, ducked when TTS starts
+let _eventAudio: HTMLAudioElement | null = null;
+function playEventClip(src: string, vol = 0.85) {
+  if (_eventAudio) { _eventAudio.pause(); _eventAudio = null; }
+  const a = new Audio(src);
+  a.volume = vol;
+  _eventAudio = a;
+  a.play().catch(() => {});
+}
+function stopEventClip() {
+  if (_eventAudio) { _eventAudio.pause(); _eventAudio = null; }
+}
+
+// Ducking — lower all playing audio when TTS commentator speaks, restore after
+type DuckedEntry = { el: HTMLAudioElement; orig: number };
+let _ducked: DuckedEntry[] = [];
+function duckAllAudio() {
+  _ducked = [];
+  [_bgAudio, _crowdAudio, _eventAudio].forEach(el => {
+    if (el && !el.paused && el.volume > 0.08) {
+      _ducked.push({ el, orig: el.volume });
+      el.volume = 0.07;
+    }
+  });
+}
+function unduckAllAudio() {
+  _ducked.forEach(({ el, orig }) => { try { el.volume = orig; } catch { /* */ } });
+  _ducked = [];
+}
+
+// One-shot (Rohit intro etc.)
+function playClip(src: string, volume = 0.8) {
   if (typeof window === 'undefined') return;
+  const a = new Audio(src);
+  a.volume = volume;
+  a.play().catch(() => {});
+}
+
+let _ttsAbort: AbortController | null = null;
+let _audioSource: AudioBufferSourceNode | null = null;
+let _pendingAudio: { buffer: AudioBuffer; agentId: string } | null = null;
+let _playWhenReady = false;
+let _fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+let _fallbackAgentId = '';
+let _fallbackMsg = '';
+
+function cancelCurrentTTS() {
+  if (_ttsAbort) { _ttsAbort.abort(); _ttsAbort = null; }
+  if (_audioSource) { try { _audioSource.stop(); } catch { /* already stopped */ } _audioSource = null; }
+  _pendingAudio = null;
+  _playWhenReady = false;
+  if (_fallbackTimer) { clearTimeout(_fallbackTimer); _fallbackTimer = null; }
+  if (typeof window !== 'undefined') window.speechSynthesis?.cancel();
+}
+
+function playAudioBuffer(buffered: { buffer: AudioBuffer; agentId: string }) {
+  if (!audioCtx) return;
+  if (_audioSource) { try { _audioSource.stop(); } catch { /* */ } _audioSource = null; }
+  duckAllAudio();
+  console.log(`[audio] playing TTS buffer for ${buffered.agentId}`);
+  const source = audioCtx.createBufferSource();
+  source.buffer = buffered.buffer;
+  _audioSource = source;
+  if (buffered.agentId === 'statsNerd') source.playbackRate.value = 0.85;
+  else if (buffered.agentId === 'roastAgent') source.playbackRate.value = 1.15;
+  source.connect(audioCtx.destination);
+  source.onended = () => {
+    if (_audioSource === source) _audioSource = null;
+    unduckAllAudio();
+    console.log('[audio] TTS ended — restoring audio and resuming IPL theme');
+    resumeBgAudio();
+  };
+  source.start(0);
+}
+
+function fallbackSpeak(agentId: string, message: string) {
+  if (typeof window === 'undefined') return;
+  window.speechSynthesis?.cancel();
+  pauseBgAudio();
+  const utterance = new SpeechSynthesisUtterance(message);
+  const voices = window.speechSynthesis.getVoices();
+  const indianVoice = voices.find(v => v.lang.includes('en-IN') || v.lang.includes('hi-IN'));
+  if (indianVoice) utterance.voice = indianVoice;
+  const rates: Record<string, number> = { statsNerd: 0.85, roastAgent: 1.15, predictor: 1.0 };
+  utterance.rate = rates[agentId] || 1.0;
+  const pitches: Record<string, number> = { statsNerd: 0.5, roastAgent: 1.5, predictor: 1.0 };
+  utterance.pitch = pitches[agentId] || 1.0;
+  utterance.onend = () => resumeBgAudio();
+  utterance.onerror = () => resumeBgAudio();
+  window.speechSynthesis.speak(utterance);
+}
+
+async function fetchTTSBuffer(agentId: string, message: string, signal: AbortSignal): Promise<void> {
   const sanitizedMessage = message.replace(/\//g, " or ");
-  console.log(`[TTS] Requesting audio for ${agentId}:`, sanitizedMessage.substring(0, 50));
   try {
     const res = await fetch(`${API_URL}/api/tts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: sanitizedMessage })
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: sanitizedMessage, agentId }), signal,
     });
-    
-    if (!res.ok) {
-      throw new Error(`Server returned ${res.status}`);
-    }
-
+    if (signal.aborted || !res.ok) return;
     const data = await res.json();
-    if (data.audio) {
-      console.log(`[TTS] Audio received, length:`, data.audio.length);
-      if (!audioCtx) audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      
-      const binaryString = atob(data.audio);
-      const len = binaryString.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-
-      const int16 = new Int16Array(bytes.buffer);
-      const float32 = new Float32Array(int16.length);
-      for (let i = 0; i < int16.length; i++) {
-        float32[i] = int16[i] / 32768.0;
-      }
-      
-      const buffer = audioCtx.createBuffer(1, float32.length, 24000);
-      buffer.getChannelData(0).set(float32);
-      const source = audioCtx.createBufferSource();
-      source.buffer = buffer;
-      
-      if (agentId === 'statsNerd' || agentId === 'stats') {
-        source.playbackRate.value = 0.85;
-      } else if (agentId === 'roastAgent' || agentId === 'roast') {
-        source.playbackRate.value = 1.15;
-      } else {
-        source.playbackRate.value = 1.0;
-      }
-      
-      source.connect(audioCtx.destination);
-      
-      return new Promise((resolve) => {
-        source.onended = resolve;
-        source.start(0);
-      });
-    } else {
-      throw new Error("API returned null audio");
+    if (signal.aborted || !data.audio) return;
+    if (!audioCtx) audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const binaryString = atob(data.audio);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+    const int16 = new Int16Array(bytes.buffer);
+    const float32 = new Float32Array(int16.length);
+    for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768.0;
+    const buffer = audioCtx.createBuffer(1, float32.length, 24000);
+    buffer.getChannelData(0).set(float32);
+    const buffered = { buffer, agentId };
+    if (_playWhenReady && !signal.aborted) {
+      console.log('[fetchTTSBuffer] buffer arrived AFTER reveal — playing immediately');
+      _playWhenReady = false;
+      if (_fallbackTimer) { clearTimeout(_fallbackTimer); _fallbackTimer = null; }
+      playAudioBuffer(buffered);
+    } else if (!signal.aborted) {
+      console.log('[fetchTTSBuffer] buffer arrived BEFORE reveal — stored in _pendingAudio');
+      _pendingAudio = buffered;
     }
-  } catch (err) {
-    console.error('TTS playback failed:', err);
-    console.log('[TTS] Falling back to browser SpeechSynthesis');
-    return new Promise((resolve) => {
-      const utterance = new SpeechSynthesisUtterance(sanitizedMessage);
-      
-      // Try to find an Indian English voice
-      const voices = window.speechSynthesis.getVoices();
-      const indianVoice = voices.find(v => v.lang.includes('en-IN') || v.lang.includes('hi-IN'));
-      if (indianVoice) utterance.voice = indianVoice;
-      
-      const rates: Record<string, number> = { statsNerd: 0.85, roastAgent: 1.15, predictor: 1.0 };
-      utterance.rate = rates[agentId] || 1.0;
-      
-      const pitches: Record<string, number> = { statsNerd: 0.5, roastAgent: 1.5, predictor: 1.0 };
-      utterance.pitch = pitches[agentId] || 1.0;
+  } catch { /* aborted or network error — silent */ }
+}
 
-      utterance.onend = resolve;
-      utterance.onerror = resolve;
-      window.speechSynthesis.speak(utterance);
-    });
+const speakMessage = (agentId: string, message: string) => {
+  console.log(`[speakMessage] called for ${agentId} — pendingAudio: ${!!_pendingAudio}`);
+  if (_pendingAudio) {
+    console.log('[speakMessage] TTS was pre-fetched ✓ — playing now');
+    playAudioBuffer(_pendingAudio);
+    _pendingAudio = null;
+  } else {
+    console.log('[speakMessage] TTS still in flight — setting _playWhenReady, browser blocked');
+    _playWhenReady = true;
+    _fallbackAgentId = agentId;
+    _fallbackMsg = message;
+    // Browser fallback BLOCKED — resuming IPL if TTS never arrives after 6s
+    _fallbackTimer = setTimeout(() => {
+      if (_playWhenReady) {
+        _playWhenReady = false;
+        console.warn('[speakMessage] TTS never arrived after 6s — resuming IPL theme (no browser fallback)');
+        resumeBgAudio();
+      }
+    }, 6000);
   }
 };
 
@@ -258,17 +366,52 @@ export default function App() {
   const [predictorPrediction, setPredictorPrediction] = useState<string>('');
   const [isBallPlaying, setIsBallPlaying] = useState(false);
   const [isAIFetching, setIsAIFetching] = useState(false);
+  const [ballPendingDelay, setBallPendingDelay] = useState(false);
   const [shake, setShake] = useState(false);
   const [askingPanel, setAskingPanel] = useState(false);
   const [recentBalls, setRecentBalls] = useState<{ run: string; c: string; over: number }[]>([]);
+  const [outcomeFlash, setOutcomeFlash] = useState<'correct' | 'wrong' | null>(null);
+  const [floatingScores, setFloatingScores] = useState<{ val: string; id: number }[]>([]);
+  const [streakBanner, setStreakBanner] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!streakBanner) return;
+    const t = setTimeout(() => setStreakBanner(null), 2200);
+    return () => clearTimeout(t);
+  }, [streakBanner]);
+
+  // IPL theme plays everywhere; Rohit intro fires once on entering live
+  useEffect(() => {
+    startBgAudio();
+    if (screen === 'live' && !rohitIntroPlayedRef.current) {
+      rohitIntroPlayedRef.current = true;
+      setTimeout(() => playClip('/audio/rohit.wav', 0.9), 300);
+    }
+  }, [screen]);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingReactionsRef = useRef<{ statsNerd: string; roastAgent: string; predictor: string } | null>(null);
+  const rohitIntroPlayedRef = useRef(false);
 
   useEffect(() => {
     fetch('/data/match.json')
       .then(res => res.json())
       .then(data => {
-        const parsedBalls = parseCricsheet(data);
+        const parsedBalls = parseCricsheet(data).map(ball => {
+          // Keep wickets and extras exact (proactive interventions key off batter/bowler/outcome)
+          if (ball.isWicket || ball.extra) return ball;
+          if (ball.isBoundary) {
+            // Randomly 4 or 6
+            const runs = Math.random() < 0.38 ? 6 : 4;
+            return { ...ball, runs };
+          }
+          if (ball.isDot) return ball;
+          // "Other" singles/twos/threes — randomise within cricket-realistic range
+          const r = Math.random();
+          const runs = r < 0.55 ? 1 : r < 0.85 ? 2 : 3;
+          return { ...ball, runs };
+        });
         setBalls(parsedBalls);
         const teams = data?.info?.teams ?? ['Team A', 'Team B'];
         const battingTeam = data?.innings?.[0]?.team ?? teams[0];
@@ -291,6 +434,7 @@ export default function App() {
 
   const playNextBall = useCallback(async (forcedPrediction?: string) => {
     if (currentBallIndex >= balls.length || isAIFetching) return;
+    stopCrowd();
     setIsBallPlaying(true);
     setIsAIFetching(true);
 
@@ -325,8 +469,8 @@ export default function App() {
       return next.length > 24 ? next.slice(-24) : next;
     });
 
-    if (ball.isWicket) playWicket();
-    else if (ball.isBoundary) playBoundary();
+    if (ball.isWicket) { playWicket(); setTimeout(() => playEventClip('/audio/kolkata.wav', 0.85), 400); }
+    else if (ball.isBoundary) { playBoundary(); setTimeout(() => playEventClip('/audio/mumbai.wav', 0.85), 300); }
 
     const actualUserPrediction = forcedPrediction || userPrediction || 'None';
     const userWasCorrect = actualUserPrediction === ball.outcome;
@@ -346,15 +490,45 @@ export default function App() {
         setStreak(s => {
           const next = s + 1;
           setBestStreak(b => Math.max(b, next));
+          // Escalating streak celebrations
+          if (next >= 7) {
+            setTimeout(playStreak5, 0);
+            setStreakBanner('UNSTOPPABLE 🔥🔥🔥');
+            confetti({ particleCount: 300, spread: 140, startVelocity: 50, origin: { y: 0.5 } });
+            confetti({ particleCount: 150, spread: 100, startVelocity: 40, origin: { x: 0.1, y: 0.6 } });
+            confetti({ particleCount: 150, spread: 100, startVelocity: 40, origin: { x: 0.9, y: 0.6 } });
+          } else if (next >= 5) {
+            setTimeout(playStreak5, 0);
+            setStreakBanner('ON FIRE 🔥🔥');
+            confetti({ particleCount: 180, spread: 110, startVelocity: 45, origin: { y: 0.55 } });
+          } else if (next >= 3) {
+            setTimeout(playStreak3, 0);
+            setStreakBanner('HOT STREAK 🔥');
+            confetti({ particleCount: 120, spread: 90, startVelocity: 40, origin: { y: 0.6 } });
+          } else {
+            setTimeout(playCorrect, 200);
+            confetti({ particleCount: 80, spread: 70, startVelocity: 35, origin: { y: 0.6 } });
+          }
           return next;
         });
-        confetti({ particleCount: 80, spread: 70, startVelocity: 35, origin: { y: 0.6 } });
-        setTimeout(playCorrect, 200);
+        // Green flash + floating +10
+        setOutcomeFlash('correct');
+        setTimeout(() => setOutcomeFlash(null), 600);
+        const fid = Date.now();
+        setFloatingScores(prev => [...prev, { val: '+10', id: fid }]);
+        setTimeout(() => setFloatingScores(prev => prev.filter(f => f.id !== fid)), 1600);
       } else {
         setStreak(0);
         setShake(true);
         setTimeout(() => setShake(false), 500);
-        setTimeout(playWrong, 200);
+        // Near miss — called Boundary got single, called Wicket got dot, etc.
+        const isNearMiss =
+          (actualUserPrediction === 'Boundary' && ball.outcome === 'Other') ||
+          (actualUserPrediction === 'Wicket' && ball.outcome === 'Dot') ||
+          (actualUserPrediction === 'Dot' && ball.outcome === 'Other');
+        setTimeout(isNearMiss ? playNearMiss : playWrong, 200);
+        setOutcomeFlash('wrong');
+        setTimeout(() => setOutcomeFlash(null), 500);
       }
     }
 
@@ -383,23 +557,21 @@ export default function App() {
     };
 
     try {
-      const reactions = await submitReaction(ball, actualUserPrediction, predictorPrediction, matchContext);
-      
+      const reactions = pendingReactionsRef.current || await submitReaction(ball, actualUserPrediction, predictorPrediction, matchContext);
+      pendingReactionsRef.current = null;
+
       addFeedItem('statsNerd', reactions.statsNerd);
       addFeedItem('roastAgent', reactions.roastAgent);
       addFeedItem('predictor', reactions.predictor);
 
+      // Play pre-fetched TTS buffer if ready, otherwise browser speech fallback
       const toSpeak = [
         { id: 'statsNerd', msg: reactions.statsNerd },
         { id: 'roastAgent', msg: reactions.roastAgent },
         { id: 'predictor', msg: reactions.predictor }
       ];
       const speaker = toSpeak[Math.floor(Math.random() * toSpeak.length)];
-      
-      // Let speakMessage run without blocking the UI, but we can await it 
-      // if we want to delay the NEXT ball from starting.
-      // The user wants audio fast, and UI to update immediately.
-      await speakMessage(speaker.id, speaker.msg);
+      speakMessage(speaker.id, speaker.msg);
     } catch (e) {
       console.error(e);
       addFeedItem('roastAgent', "API choked. The agents are all stuck in traffic.");
@@ -421,14 +593,45 @@ export default function App() {
   }, [playNextBall]);
 
   useEffect(() => {
-    if (userPrediction && !isAIFetching && !isBallPlaying) {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
+    if (userPrediction && !isAIFetching && !isBallPlaying && !ballPendingDelay) {
+      if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+      if (pendingDelayRef.current) { clearTimeout(pendingDelayRef.current); pendingDelayRef.current = null; }
+      pendingReactionsRef.current = null;
+      cancelCurrentTTS();
+      pauseBgAudio();
+      playCrowd();
+      setBallPendingDelay(true);
+
+      // Fire reactions API + TTS fetch during the 3s window so both are ready on reveal
+      const ball = balls[currentBallIndex];
+      if (ball) {
+        const matchCtx = {
+          over: ball.over,
+          score: `${matchScoreInfo.runs}/${matchScoreInfo.wickets}`,
+          userScoreTotal: userScore, predictorScoreTotal: predictorScore,
+        };
+        submitReaction(ball, userPrediction, predictorPrediction, matchCtx)
+          .then(reactions => {
+            pendingReactionsRef.current = reactions;
+            const speakers = [
+              { id: 'statsNerd', msg: reactions.statsNerd },
+              { id: 'roastAgent', msg: reactions.roastAgent },
+              { id: 'predictor', msg: reactions.predictor },
+            ];
+            const pick = speakers[Math.floor(Math.random() * speakers.length)];
+            const abort = new AbortController();
+            _ttsAbort = abort;
+            fetchTTSBuffer(pick.id, pick.msg, abort.signal);
+          })
+          .catch(() => {});
       }
-      setTimeout(() => playNextBall(userPrediction), 0);
+
+      pendingDelayRef.current = setTimeout(() => {
+        setBallPendingDelay(false);
+        playNextBall(userPrediction);
+      }, 3000);
     }
-  }, [userPrediction, isAIFetching, isBallPlaying, playNextBall]);
+  }, [userPrediction, isAIFetching, isBallPlaying, ballPendingDelay, playNextBall, balls, currentBallIndex, matchScoreInfo, userScore, predictorScore, predictorPrediction]);
 
   useEffect(() => {
     if (screen !== 'live' || isPaused || balls.length === 0 || currentBallIndex >= balls.length || isAIFetching) {
@@ -521,6 +724,65 @@ export default function App() {
       position: "relative", overflow: "hidden",
       animation: shake ? "sl-shake 0.5s ease-in-out" : undefined,
     }}>
+
+      {/* Screen flash on correct/wrong */}
+      {outcomeFlash && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 997, pointerEvents: 'none',
+          background: outcomeFlash === 'correct' ? 'rgba(50,255,120,0.16)' : 'rgba(255,50,50,0.13)',
+          animation: `${outcomeFlash === 'correct' ? 'sl-flash-green' : 'sl-flash-red'} 0.55s ease-out forwards`,
+        }} />
+      )}
+
+      {/* Floating +10 score popup */}
+      {floatingScores.map(f => (
+        <div key={f.id} style={{
+          position: 'fixed', bottom: 200, left: '50%',
+          fontFamily: 'var(--f-display)', fontSize: 34, fontWeight: 800,
+          color: 'var(--pitch-1)', zIndex: 999, pointerEvents: 'none',
+          letterSpacing: -0.02,
+          animation: 'sl-float-score 1.5s ease-out forwards',
+          textShadow: '0 0 20px rgba(50,255,120,0.5)',
+        }}>{f.val}</div>
+      ))}
+
+      {/* Streak milestone banner */}
+      {streakBanner && (
+        <div style={{
+          position: 'fixed', top: '38%', left: '50%',
+          zIndex: 999, pointerEvents: 'none',
+          fontFamily: 'var(--f-display)', fontSize: 42, fontWeight: 800,
+          letterSpacing: -0.02, whiteSpace: 'nowrap',
+          animation: 'sl-streak-pop 2.2s ease-out forwards',
+          textShadow: '0 0 40px rgba(50,255,120,0.7), 0 2px 12px rgba(0,0,0,0.9)',
+          color: 'var(--light-0)',
+        }}>{streakBanner}</div>
+      )}
+
+      {/* 3s timer drain bar at top */}
+      {ballPendingDelay && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 3, zIndex: 1000, pointerEvents: 'none', background: 'var(--ink-2)' }}>
+          <div style={{ height: '100%', background: 'var(--pitch-1)', animation: 'sl-timer-drain 3s linear forwards' }} />
+        </div>
+      )}
+
+      {/* Playing the ball toast */}
+      {ballPendingDelay && (
+        <div style={{
+          position: 'fixed', bottom: 96, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 999, pointerEvents: 'none',
+          background: 'var(--ink-1)', border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 100, padding: '10px 20px',
+          display: 'flex', alignItems: 'center', gap: 8,
+          fontFamily: 'var(--f-mono)', fontSize: 12, letterSpacing: '0.06em',
+          color: 'var(--light-2)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          animation: 'sl-fade-up 0.2s ease',
+        }}>
+          <span className="sl-live-dot" style={{ background: 'var(--pitch-1)', flexShrink: 0 }} />
+          Playing the ball...
+        </div>
+      )}
+
       {screen === 'onboarding' && (
         isDesktop ? (
           <OnboardingDesktop onStart={() => setScreen('home')} />
@@ -591,9 +853,9 @@ export default function App() {
             streak={streak}
             userPrediction={userPrediction}
             predictorPrediction={predictorPrediction}
-            onPredict={(p) => setUserPrediction(p)}
+            onPredict={(p) => { playClip('/audio/crowd.wav', 0.7); setUserPrediction(p); }}
             feed={feed}
-            isBallPlaying={isBallPlaying}
+            isBallPlaying={isBallPlaying || ballPendingDelay}
             isAIFetching={isAIFetching}
             onAskPanel={() => setScreen('askPanel')}
             recentBalls={recentBalls}
@@ -617,9 +879,9 @@ export default function App() {
             onToggleSpeed={() => setSpeedIndex(s => (s + 1) % SPEEDS.length)}
             userPrediction={userPrediction}
             predictorPrediction={predictorPrediction}
-            onPredict={(p) => setUserPrediction(p)}
+            onPredict={(p) => { playClip('/audio/crowd.wav', 0.7); setUserPrediction(p); }}
             feed={feed}
-            isBallPlaying={isBallPlaying}
+            isBallPlaying={isBallPlaying || ballPendingDelay}
             isAIFetching={isAIFetching}
             onBack={() => setScreen('home')}
             onAskPanel={() => setScreen('askPanel')}
