@@ -17,7 +17,7 @@ import { fetchNextPrediction, submitReaction, askPanel } from './lib/api';
 type Screen = 'onboarding' | 'home' | 'matchDetail' | 'live' | 'askPanel' | 'recap' | 'panel' | 'you';
 
 const SPEEDS = [1, 2, 4];
-const BASE_INTERVAL_MS = 16000;
+const BASE_INTERVAL_MS = 60000;
 
 let audioCtx: AudioContext | null = null;
 const initAudio = () => {
@@ -100,8 +100,6 @@ function initBgAudio() {
 function startBgAudio() { initBgAudio(); if (_bgAudio?.paused) _bgAudio.play().catch(() => {}); }
 function pauseBgAudio() { if (_bgAudio && !_bgAudio.paused) _bgAudio.pause(); }
 function resumeBgAudio() { if (_bgAudio?.paused) _bgAudio.play().catch(() => {}); }
-// @ts-ignore
-function stopBgAudio() { if (_bgAudio) { _bgAudio.pause(); _bgAudio.currentTime = 0; } }
 
 // Crowd — plays during the 3s prediction delay
 let _crowdAudio: HTMLAudioElement | null = null;
@@ -158,10 +156,6 @@ let _audioSource: AudioBufferSourceNode | null = null;
 let _pendingAudio: { buffer: AudioBuffer; agentId: string } | null = null;
 let _playWhenReady = false;
 let _fallbackTimer: ReturnType<typeof setTimeout> | null = null;
-// @ts-ignore
-let _fallbackAgentId = '';
-// @ts-ignore
-let _fallbackMsg = '';
 
 function cancelCurrentTTS() {
   if (_ttsAbort) { _ttsAbort.abort(); _ttsAbort = null; }
@@ -190,24 +184,6 @@ function playAudioBuffer(buffered: { buffer: AudioBuffer; agentId: string }) {
     resumeBgAudio();
   };
   source.start(0);
-}
-
-// @ts-ignore
-function fallbackSpeak(agentId: string, message: string) {
-  if (typeof window === 'undefined') return;
-  window.speechSynthesis?.cancel();
-  pauseBgAudio();
-  const utterance = new SpeechSynthesisUtterance(message);
-  const voices = window.speechSynthesis.getVoices();
-  const indianVoice = voices.find(v => v.lang.includes('en-IN') || v.lang.includes('hi-IN'));
-  if (indianVoice) utterance.voice = indianVoice;
-  const rates: Record<string, number> = { statsNerd: 0.85, roastAgent: 1.15, predictor: 1.0 };
-  utterance.rate = rates[agentId] || 1.0;
-  const pitches: Record<string, number> = { statsNerd: 0.5, roastAgent: 1.5, predictor: 1.0 };
-  utterance.pitch = pitches[agentId] || 1.0;
-  utterance.onend = () => resumeBgAudio();
-  utterance.onerror = () => resumeBgAudio();
-  window.speechSynthesis.speak(utterance);
 }
 
 async function fetchTTSBuffer(agentId: string, message: string, signal: AbortSignal): Promise<void> {
@@ -251,8 +227,6 @@ const speakMessage = (agentId: string, message: string) => {
   } else {
     console.log('[speakMessage] TTS still in flight — setting _playWhenReady, browser blocked');
     _playWhenReady = true;
-    _fallbackAgentId = agentId;
-    _fallbackMsg = message;
     // Browser fallback BLOCKED — resuming IPL if TTS never arrives after 6s
     _fallbackTimer = setTimeout(() => {
       if (_playWhenReady) {
@@ -605,6 +579,7 @@ export default function App() {
       cancelCurrentTTS();
       pauseBgAudio();
       playCrowd();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setBallPendingDelay(true);
 
       // Fire reactions API + TTS fetch during the 3s window so both are ready on reveal
