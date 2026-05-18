@@ -134,7 +134,7 @@ function duckAllAudio() {
   [_bgAudio, _crowdAudio, _eventAudio].forEach(el => {
     if (el && !el.paused && el.volume > 0.08) {
       _ducked.push({ el, orig: el.volume });
-      el.volume = 0.07;
+      el.volume = 0.02;
     }
   });
 }
@@ -156,12 +156,14 @@ let _audioSource: AudioBufferSourceNode | null = null;
 let _pendingAudio: { buffer: AudioBuffer; agentId: string } | null = null;
 let _playWhenReady = false;
 let _fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+let _playWicketAfterTTS = false;
 
 function cancelCurrentTTS() {
   if (_ttsAbort) { _ttsAbort.abort(); _ttsAbort = null; }
   if (_audioSource) { try { _audioSource.stop(); } catch { /* already stopped */ } _audioSource = null; }
   _pendingAudio = null;
   _playWhenReady = false;
+  _playWicketAfterTTS = false;
   if (_fallbackTimer) { clearTimeout(_fallbackTimer); _fallbackTimer = null; }
   if (typeof window !== 'undefined') window.speechSynthesis?.cancel();
 }
@@ -182,6 +184,10 @@ function playAudioBuffer(buffered: { buffer: AudioBuffer; agentId: string }) {
     unduckAllAudio();
     console.log('[audio] TTS ended — restoring audio and resuming IPL theme');
     resumeBgAudio();
+    if (_playWicketAfterTTS) {
+      _playWicketAfterTTS = false;
+      playEventClip('/audio/kolkata.wav', 0.85);
+    }
   };
   source.start(0);
 }
@@ -218,7 +224,7 @@ async function fetchTTSBuffer(agentId: string, message: string, signal: AbortSig
   } catch { /* aborted or network error — silent */ }
 }
 
-const speakMessage = (agentId: string, _message: string) => {
+const speakMessage = (agentId: string) => {
   console.log(`[speakMessage] called for ${agentId} — pendingAudio: ${!!_pendingAudio}`);
   if (_pendingAudio) {
     console.log('[speakMessage] TTS was pre-fetched ✓ — playing now');
@@ -233,6 +239,10 @@ const speakMessage = (agentId: string, _message: string) => {
         _playWhenReady = false;
         console.warn('[speakMessage] TTS never arrived after 6s — resuming IPL theme (no browser fallback)');
         resumeBgAudio();
+        if (_playWicketAfterTTS) {
+          _playWicketAfterTTS = false;
+          playEventClip('/audio/kolkata.wav', 0.85);
+        }
       }
     }, 6000);
   }
@@ -448,7 +458,7 @@ export default function App() {
       return next.length > 24 ? next.slice(-24) : next;
     });
 
-    if (ball.isWicket) { playWicket(); setTimeout(() => playEventClip('/audio/kolkata.wav', 0.85), 400); }
+    if (ball.isWicket) { playWicket(); _playWicketAfterTTS = true; }
     else if (ball.isBoundary) { playBoundary(); setTimeout(() => playEventClip('/audio/mumbai.wav', 0.85), 300); }
 
     const actualUserPrediction = forcedPrediction || userPrediction || 'None';
@@ -550,10 +560,14 @@ export default function App() {
         { id: 'predictor', msg: reactions.predictor }
       ];
       const speaker = toSpeak[Math.floor(Math.random() * toSpeak.length)];
-      speakMessage(speaker.id, speaker.msg);
+      speakMessage(speaker.id);
     } catch (e) {
       console.error(e);
       addFeedItem('roastAgent', "API choked. The agents are all stuck in traffic.");
+      if (_playWicketAfterTTS) {
+        _playWicketAfterTTS = false;
+        playEventClip('/audio/kolkata.wav', 0.85);
+      }
     }
 
     setIsAIFetching(false);
