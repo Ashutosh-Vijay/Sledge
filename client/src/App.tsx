@@ -692,7 +692,7 @@ export default function App() {
         { id: 'predictor', msg: answers.predictor }
       ];
       const speaker = toSpeak[Math.floor(Math.random() * toSpeak.length)];
-      speakMessage(speaker.id, speaker.msg);
+      speakMessage(speaker.id);
 
       addFeedItem('statsNerd', answers.statsNerd);
       addFeedItem('roastAgent', answers.roastAgent);
