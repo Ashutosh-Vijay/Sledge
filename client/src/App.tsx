@@ -218,7 +218,7 @@ async function fetchTTSBuffer(agentId: string, message: string, signal: AbortSig
   } catch { /* aborted or network error — silent */ }
 }
 
-const speakMessage = (agentId: string, message: string) => {
+const speakMessage = (agentId: string, _message: string) => {
   console.log(`[speakMessage] called for ${agentId} — pendingAudio: ${!!_pendingAudio}`);
   if (_pendingAudio) {
     console.log('[speakMessage] TTS was pre-fetched ✓ — playing now');
